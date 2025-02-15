@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Enhanced Argument Tree Visualizer – External Files</title>
+  <title>Argument Tree Visualizer – Tree Layout</title>
   <style>
     body {
       margin: 0;
@@ -23,7 +23,7 @@
       margin-right: 5px;
       font-size: 14px;
     }
-    /* Interactive button styles */
+    /* Button styling for interactive elements */
     .button-circle {
       stroke: darkgreen;
       stroke-width: 1px;
@@ -42,7 +42,9 @@
       fill: lightblue;
       cursor: pointer;
     }
-    line.link {
+    /* Link styling */
+    path.link {
+      fill: none;
       stroke: #ccc;
       stroke-width: 1.5px;
     }
@@ -53,7 +55,6 @@
     <select id="argumentSelect"></select>
     <button id="newArgument">New Argument Tree</button>
     <button id="clearAll">Clear All</button>
-    <button id="resetDefaults">Defaults</button>
     <button id="loadExternal">Load External Argument</button>
   </div>
   <svg id="canvas" width="100%" height="100%"></svg>
@@ -68,191 +69,17 @@
     let currentTreeName = "";
     let currentTree = {};
 
-    // Expanded default Gun Control Debate tree
-    const defaultGunControlTree = {
-      claim: "Gun control is essential for reducing violent crime.",
-      data: [
-        {
-          text: "Studies in Australia show a significant drop in gun violence after strict gun control measures.",
-          counter: {
-            claim: "However, Australia's context is not comparable to the US.",
-            data: [
-              {
-                text: "Different cultural, economic, and legal factors exist in Australia.",
-                counter: {
-                  claim: "Some differences are superficial; underlying issues are similar.",
-                  data: [
-                    {
-                      text: "Both countries struggle with balancing individual rights and public safety.",
-                      counter: {
-                        claim: "Yet, the US places a higher premium on individual freedoms.",
-                        data: [
-                          {
-                            text: "The US Constitution enshrines the right to bear arms.",
-                            counter: {
-                              claim: "That right was originally meant for defense rather than mass gun ownership.",
-                              data: [
-                                {
-                                  text: "Historical debates showed that arms regulation was once considered.",
-                                  counter: {
-                                    claim: "Interpretations of the Second Amendment have evolved over time.",
-                                    data: [
-                                      {
-                                        text: "Modern legal precedents now allow for stricter gun control measures.",
-                                        counter: null,
-                                        warrants: []
-                                      }
-                                    ],
-                                    warrants: []
-                                  }
-                                }
-                              ],
-                              warrants: []
-                            }
-                          }
-                        ],
-                        warrants: []
-                      }
-                    }
-                  ],
-                  warrants: []
-                }
-              }
-            ],
-            warrants: [
-              {
-                text: "Critics argue these studies ignore demographic differences.",
-                counter: {
-                  claim: "However, advanced statistical methods adjust for such variables.",
-                  data: [
-                    {
-                      text: "In-depth analyses show the effects persist even after controlling for demographics.",
-                      counter: null,
-                      warrants: []
-                    }
-                  ],
-                  warrants: []
-                }
-              }
-            ]
-          }
-        },
-        {
-          text: "US data shows states with strict gun laws tend to have lower gun-related fatalities.",
-          counter: {
-            claim: "But correlation does not equal causation.",
-            data: [
-              {
-                text: "Other factors, like socioeconomic conditions, also influence crime rates.",
-                counter: {
-                  claim: "Yet, multiple studies indicate gun laws independently affect outcomes.",
-                  data: [
-                    {
-                      text: "Meta-analyses confirm that stricter laws correlate with reduced fatalities.",
-                      counter: null,
-                      warrants: []
-                    }
-                  ],
-                  warrants: []
-                }
-              }
-            ],
-            warrants: [
-              {
-                text: "Some argue that cultural factors drive both legislation and crime rates.",
-                counter: {
-                  claim: "Culture is often shaped by policy outcomes over time.",
-                  data: [
-                    {
-                      text: "Legislation can gradually shift societal norms.",
-                      counter: null,
-                      warrants: []
-                    }
-                  ],
-                  warrants: []
-                }
-              }
-            ]
-          }
-        }
-      ],
-      warrants: [
-        {
-          text: "Restricting access to firearms logically reduces opportunities for violent acts.",
-          counter: {
-            claim: "Criminals do not follow laws, so restrictions primarily burden law-abiding citizens.",
-            data: [
-              {
-                text: "Empirical evidence shows that fewer guns lead to fewer violent crimes overall.",
-                counter: {
-                  claim: "Some studies dispute the statistical significance of these results.",
-                  data: [
-                    {
-                      text: "Recent comprehensive reviews support the positive impact of gun control.",
-                      counter: null,
-                      warrants: []
-                    }
-                  ],
-                  warrants: []
-                }
-              }
-            ],
-            warrants: [
-              {
-                text: "There is also data suggesting criminals obtain guns through illegal means regardless.",
-                counter: {
-                  claim: "Enhanced background checks can reduce illegal gun acquisitions.",
-                  data: [
-                    {
-                      text: "Several countries have successfully implemented strict background checks.",
-                      counter: {
-                        claim: "Though cultural and legal differences complicate direct comparisons.",
-                        data: [
-                          {
-                            text: "Nonetheless, best practices can be adapted to improve safety.",
-                            counter: null,
-                            warrants: []
-                          }
-                        ],
-                        warrants: []
-                      }
-                    }
-                  ],
-                  warrants: []
-                }
-              }
-            ]
-          }
-        },
-        {
-          text: "Effective regulation ensures that only responsible individuals can access firearms.",
-          counter: {
-            claim: "Over-regulation may infringe on personal freedoms.",
-            data: [
-              {
-                text: "A balanced approach is needed to protect both safety and rights.",
-                counter: {
-                  claim: "It is possible to enforce strict controls while respecting constitutional rights.",
-                  data: [
-                    {
-                      text: "Countries such as Japan demonstrate low crime rates with rigorous regulations.",
-                      counter: null,
-                      warrants: []
-                    }
-                  ],
-                  warrants: []
-                }
-              }
-            ],
-            warrants: []
-          }
-        }
-      ]
+    // Expanded default tree (this will only be used if you create a new tree)
+    const defaultTree = {
+      claim: "New Argument Claim",
+      data: [],
+      warrants: []
     };
 
     /***********************
      * Color Palette & Persistent Color Assignment
      ***********************/
+    // A preset palette of pastel colors chosen for contrast.
     const palette = [
       "hsl(0, 70%, 85%)",
       "hsl(180, 70%, 85%)",
@@ -278,7 +105,8 @@
       if (saved) {
         argumentTrees = JSON.parse(saved);
       } else {
-        argumentTrees = { "Gun Control Debate": defaultGunControlTree };
+        // Start with an empty set (external files will populate these)
+        argumentTrees = {};
         updateLocalStorage();
       }
       currentTreeName = Object.keys(argumentTrees)[0] || "";
@@ -306,7 +134,7 @@
     document.getElementById('newArgument').onclick = function() {
       const name = prompt("Enter a name for the new argument tree:");
       if (name) {
-        argumentTrees[name] = { claim: "New Argument Claim", data: [], warrants: [] };
+        argumentTrees[name] = JSON.parse(JSON.stringify(defaultTree));
         currentTreeName = name;
         currentTree = argumentTrees[name];
         populateDropdown();
@@ -324,19 +152,8 @@
         updateVisualization();
       }
     };
-    document.getElementById('resetDefaults').onclick = function() {
-      if (confirm("Reset to the default Gun Control Debate?")) {
-        argumentTrees = { "Gun Control Debate": defaultGunControlTree };
-        currentTreeName = "Gun Control Debate";
-        currentTree = argumentTrees[currentTreeName];
-        nextColorIndex = 0;
-        updateLocalStorage();
-        populateDropdown();
-        updateVisualization();
-      }
-    };
 
-    // New: Load External Argument button – scan a folder for available JSON argument files.
+    // New: Load External Argument – expects an external file index (arguments/index.json)
     document.getElementById('loadExternal').onclick = function() {
       d3.json('arguments/index.json')
         .then(function(indexData) {
@@ -373,6 +190,8 @@
     /***********************
      * Hierarchy Conversion with Persistent Colors
      ***********************/
+    // Converts our argument node into a hierarchical object for D3.
+    // For claim nodes, if no color is already assigned, one is assigned and stored.
     function convertArgumentNode(argNode, path) {
       if (!argNode.color) {
         argNode.color = getNextColor();
@@ -455,13 +274,14 @@
     }
 
     /***********************
-     * D3 Visualization with Force Simulation & Gravity
+     * D3 Tree Layout Visualization
      ***********************/
     const svg = d3.select("#canvas");
     let width = window.innerWidth,
         height = window.innerHeight;
     svg.attr("width", width).attr("height", height);
 
+    // Set up pan/zoom.
     svg.call(d3.zoom().scaleExtent([0.1, 3]).on("zoom", event => {
       gContainer.attr("transform", event.transform);
     }));
@@ -475,7 +295,7 @@
             word,
             line = [],
             lineNumber = 0,
-            lineHeight = 1.1,
+            lineHeight = 1.1, // ems
             x = textEl.attr("x"),
             y = textEl.attr("y"),
             dy = 0,
@@ -487,7 +307,8 @@
             line.pop();
             tspan.text(line.join(" "));
             line = [word];
-            tspan = textEl.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+            tspan = textEl.append("tspan").attr("x", x).attr("y", y)
+                    .attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
           }
         }
       });
@@ -496,16 +317,27 @@
     function updateVisualization() {
       gContainer.selectAll("*").remove();
       if (!currentTree) return;
-
+      
+      // Convert our custom argument structure to a hierarchical object.
       const rootData = convertArgumentNode(currentTree, []);
       const root = d3.hierarchy(rootData);
-      const nodes = root.descendants();
-      const links = root.links();
-
-      nodes.forEach(d => {
+      
+      // Use d3.tree layout for a clear, hierarchical arrangement.
+      const treeLayout = d3.tree()
+        .size([width - 160, height - 100])
+        .separation((a, b) => a.parent === b.parent ? 1 : 2);
+      treeLayout(root);
+      
+      // For each node, measure the label to determine shape size.
+      root.descendants().forEach(d => {
         let label = d.data.name.split(": ")[1];
-        const fontSize = 12, maxWidth = 200;
-        let tempText = svg.append("text").attr("font-size", fontSize).attr("font-family", "sans-serif").text(label);
+        const fontSize = 12;
+        const maxWidth = 200;
+        // Temporary text measurement.
+        let tempText = svg.append("text")
+                          .attr("font-size", fontSize)
+                          .attr("font-family", "sans-serif")
+                          .text(label);
         let bbox = tempText.node().getBBox();
         tempText.remove();
         let lines = Math.ceil(bbox.width / maxWidth);
@@ -513,34 +345,31 @@
         let nodeHeight = (lines * 16) + 20;
         d.nodeWidth = nodeWidth;
         d.nodeHeight = nodeHeight;
-        d.radius = Math.sqrt((nodeWidth/2)**2 + (nodeHeight/2)**2);
       });
-
-      const simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).distance(150).strength(1))
-        .force("collide", d3.forceCollide().radius(d => d.radius + 10).iterations(2))
-        .force("charge", d3.forceManyBody().strength(-200))
-        .force("center", d3.forceCenter(width/2, height/2))
-        .force("y", d3.forceY(d => d.depth * 150).strength(0.8))
-        .on("tick", ticked);
-
-      const linkElements = gContainer.selectAll("line.link")
-        .data(links)
+      
+      // Draw links using a vertical link generator.
+      const linkGenerator = d3.linkVertical()
+                              .x(d => d.x + d.nodeWidth/2)
+                              .y(d => d.y + d.nodeHeight/2);
+      gContainer.selectAll("path.link")
+        .data(root.links())
         .enter()
-        .append("line")
-        .attr("class", "link");
-
+        .append("path")
+        .attr("class", "link")
+        .attr("d", d => linkGenerator({
+          source: { x: d.source.x, y: d.source.y, nodeWidth: d.source.nodeWidth, nodeHeight: d.source.nodeHeight },
+          target: { x: d.target.x, y: d.target.y, nodeWidth: d.target.nodeWidth, nodeHeight: d.target.nodeHeight }
+        }));
+      
+      // Draw nodes.
       const nodeGroups = gContainer.selectAll("g.node")
-        .data(nodes)
+        .data(root.descendants())
         .enter()
         .append("g")
         .attr("class", "node")
-        .call(d3.drag()
-          .on("start", dragStarted)
-          .on("drag", dragged)
-          .on("end", dragEnded)
-        );
-
+        .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+      
+      // Append shapes based on type.
       // Claim nodes as ellipses.
       nodeGroups.filter(d => d.data.type === "claim")
         .append("ellipse")
@@ -584,7 +413,8 @@
             updateVisualization();
           }
         });
-
+      
+      // Append centered text.
       nodeGroups.append("text")
         .attr("x", d => d.nodeWidth/2)
         .attr("y", d => d.nodeHeight/2)
@@ -596,8 +426,9 @@
         .each(function(d) {
           wrap(d3.select(this), d.nodeWidth - 20);
         });
-
+      
       /*********************** Interactive Buttons ***********************/
+      // For data/warrant nodes without a counter, add an "Add Counter" button.
       nodeGroups.filter(d => (d.data.type==="data" || d.data.type==="warrant") && !d.data.raw.counter)
         .append("circle")
         .attr("class", "button-circle")
@@ -621,10 +452,12 @@
           addCounterToNode(d.data.originalPath);
           updateVisualization();
         });
-
+      
+      // For claim nodes, add "Add Data" and "Add Warrant" buttons.
       nodeGroups.filter(d => d.data.type==="claim")
         .each(function(d) {
           const group = d3.select(this);
+          // "Add Data" button.
           group.append("circle")
             .attr("class", "button-circle")
             .attr("cx", d.nodeWidth + 10)
@@ -654,6 +487,7 @@
                 updateVisualization();
               }
             });
+          // "Add Warrant" button.
           group.append("circle")
             .attr("class", "button-circle")
             .attr("cx", d.nodeWidth + 30)
@@ -684,7 +518,8 @@
               }
             });
         });
-
+      
+      // For claim nodes with children, add a collapse/expand toggle.
       nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length>0 || d.data.raw.warrants.length>0))
         .append("circle")
         .attr("class", "collapse-circle")
@@ -708,7 +543,9 @@
           d.data.raw.collapsed = !d.data.raw.collapsed;
           updateVisualization();
         });
-      nodeGroups.filter(d => d.depth>0)
+      
+      // Add a delete button for non-root nodes.
+      nodeGroups.filter(d => d.depth > 0)
         .append("circle")
         .attr("class", "delete-circle")
         .attr("cx", 10)
@@ -721,7 +558,7 @@
             updateVisualization();
           }
         });
-      nodeGroups.filter(d => d.depth>0)
+      nodeGroups.filter(d => d.depth > 0)
         .append("text")
         .attr("x", 10)
         .attr("y", 14)
@@ -735,29 +572,6 @@
             updateVisualization();
           }
         });
-
-      function ticked() {
-        linkElements
-          .attr("x1", d => d.source.x + d.source.nodeWidth/2)
-          .attr("y1", d => d.source.y + d.source.nodeHeight/2)
-          .attr("x2", d => d.target.x + d.target.nodeWidth/2)
-          .attr("y2", d => d.target.y + d.target.nodeHeight/2);
-        nodeGroups.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
-      }
-      function dragStarted(event, d) {
-        if(!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      }
-      function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-      }
-      function dragEnded(event, d) {
-        if(!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }
     }
 
     window.addEventListener("resize", function(){
