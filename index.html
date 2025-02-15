@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Enhanced Argument Tree Visualizer – Shapes & Gravity</title>
+  <title>Enhanced Argument Tree Visualizer – Full Defaults</title>
   <style>
     body {
       margin: 0;
@@ -23,7 +23,7 @@
       margin-right: 5px;
       font-size: 14px;
     }
-    /* Styling for interactive buttons */
+    /* Interactive button styles */
     .button-circle {
       stroke: darkgreen;
       stroke-width: 1px;
@@ -52,6 +52,8 @@
   <div id="controls">
     <select id="argumentSelect"></select>
     <button id="newArgument">New Argument Tree</button>
+    <button id="clearAll">Clear All</button>
+    <button id="resetDefaults">Defaults</button>
   </div>
   <svg id="canvas" width="100%" height="100%"></svg>
 
@@ -59,27 +61,183 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script>
     /***********************
-     * Global Variables & Default Tree
+     * Global Variables & Expanded Default Tree
      ***********************/
     let argumentTrees = {};
     let currentTreeName = "";
     let currentTree = {};
 
-    // Default Gun Control Debate tree – same structure as before.
+    // Expanded default Gun Control Debate tree with multiple nested counter-arguments.
     const defaultGunControlTree = {
       claim: "Gun control is essential for reducing violent crime.",
       data: [
         {
           text: "Studies in Australia show a significant drop in gun violence after strict gun control measures.",
           counter: {
-            claim: "However, Australia's societal context differs greatly from that of the US, making comparisons unreliable.",
+            claim: "However, Australia's context is not comparable to the US.",
             data: [
               {
-                text: "Cultural, economic, and legal differences make the Australian model not directly applicable.",
+                text: "Different cultural, economic, and legal factors exist in Australia.",
                 counter: {
-                  claim: "Yet, many of these factors exist in the US too, meaning the argument still holds merit.",
+                  claim: "Some differences are superficial; underlying issues are similar.",
                   data: [
-                    { text: "Further analysis shows some similarities between the countries.", counter: null }
+                    {
+                      text: "Both countries struggle with balancing individual rights and public safety.",
+                      counter: {
+                        claim: "Yet, the US places a higher premium on individual freedoms.",
+                        data: [
+                          {
+                            text: "The US Constitution enshrines the right to bear arms.",
+                            counter: {
+                              claim: "That right was originally meant for defense rather than mass gun ownership.",
+                              data: [
+                                {
+                                  text: "Historical debates showed that arms regulation was once considered.",
+                                  counter: {
+                                    claim: "Interpretations of the Second Amendment have evolved over time.",
+                                    data: [
+                                      {
+                                        text: "Modern legal precedents now allow for stricter gun control measures.",
+                                        counter: null,
+                                        warrants: []
+                                      }
+                                    ],
+                                    warrants: []
+                                  }
+                                }
+                              ],
+                              warrants: []
+                            }
+                          }
+                        ],
+                        warrants: []
+                      }
+                    }
+                  ],
+                  warrants: []
+                }
+              }
+            ],
+            warrants: [
+              {
+                text: "Critics argue these studies ignore demographic differences.",
+                counter: {
+                  claim: "However, advanced statistical methods adjust for such variables.",
+                  data: [
+                    {
+                      text: "In-depth analyses show the effects persist even after controlling for demographics.",
+                      counter: null,
+                      warrants: []
+                    }
+                  ],
+                  warrants: []
+                }
+              }
+            ]
+          }
+        },
+        {
+          text: "US data shows states with strict gun laws tend to have lower gun-related fatalities.",
+          counter: {
+            claim: "But correlation does not equal causation.",
+            data: [
+              {
+                text: "Other factors, like socioeconomic conditions, also influence crime rates.",
+                counter: {
+                  claim: "Yet, multiple studies indicate gun laws independently affect outcomes.",
+                  data: [
+                    {
+                      text: "Meta-analyses confirm that stricter laws correlate with reduced fatalities.",
+                      counter: null,
+                      warrants: []
+                    }
+                  ],
+                  warrants: []
+                }
+              }
+            ],
+            warrants: [
+              {
+                text: "Some argue that cultural factors drive both legislation and crime rates.",
+                counter: {
+                  claim: "Culture is often shaped by policy outcomes over time.",
+                  data: [
+                    {
+                      text: "Legislation can gradually shift societal norms.",
+                      counter: null,
+                      warrants: []
+                    }
+                  ],
+                  warrants: []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      warrants: [
+        {
+          text: "Restricting access to firearms logically reduces opportunities for violent acts.",
+          counter: {
+            claim: "Criminals do not follow laws, so restrictions primarily burden law-abiding citizens.",
+            data: [
+              {
+                text: "Empirical evidence shows that fewer guns lead to fewer violent crimes overall.",
+                counter: {
+                  claim: "Some studies dispute the statistical significance of these results.",
+                  data: [
+                    {
+                      text: "Recent comprehensive reviews support the positive impact of gun control.",
+                      counter: null,
+                      warrants: []
+                    }
+                  ],
+                  warrants: []
+                }
+              }
+            ],
+            warrants: [
+              {
+                text: "There is also data suggesting criminals obtain guns through illegal means regardless.",
+                counter: {
+                  claim: "Enhanced background checks can reduce illegal gun acquisitions.",
+                  data: [
+                    {
+                      text: "Several countries have successfully implemented strict background checks.",
+                      counter: {
+                        claim: "Though cultural and legal differences complicate direct comparisons.",
+                        data: [
+                          {
+                            text: "Nonetheless, best practices can be adapted to improve safety.",
+                            counter: null,
+                            warrants: []
+                          }
+                        ],
+                        warrants: []
+                      }
+                    }
+                  ],
+                  warrants: []
+                }
+              }
+            ]
+          }
+        },
+        {
+          text: "Effective regulation ensures that only responsible individuals can access firearms.",
+          counter: {
+            claim: "Over-regulation may infringe on personal freedoms.",
+            data: [
+              {
+                text: "A balanced approach is needed to protect both safety and rights.",
+                counter: {
+                  claim: "It is possible to enforce strict controls while respecting constitutional rights.",
+                  data: [
+                    {
+                      text: "Countries such as Japan demonstrate low crime rates with rigorous regulations.",
+                      counter: null,
+                      warrants: []
+                    }
                   ],
                   warrants: []
                 }
@@ -87,37 +245,6 @@
             ],
             warrants: []
           }
-        },
-        {
-          text: "Data from the US indicates that states with stricter gun laws experience fewer gun-related incidents.",
-          counter: null
-        }
-      ],
-      warrants: [
-        {
-          text: "Restricting access to firearms logically reduces the opportunity for violent acts.",
-          counter: {
-            claim: "Opponents argue that criminals do not adhere to laws, thus restrictions only affect law-abiding citizens.",
-            data: [
-              {
-                text: "In many cases, the illegal arms trade supplies criminals regardless of restrictions.",
-                counter: {
-                  claim: "But the illegal arms trade thrives on other factors like corruption and organized crime, not merely the availability of guns.",
-                  data: [
-                    { text: "Reports indicate that organized crime networks have multiple supply channels.", counter: null }
-                  ],
-                  warrants: [
-                    { text: "Thus, focusing solely on gun control might not be sufficient to curb crime.", counter: null }
-                  ]
-                }
-              }
-            ],
-            warrants: []
-          }
-        },
-        {
-          text: "Effective regulation can ensure that only responsible individuals have access to firearms.",
-          counter: null
         }
       ]
     };
@@ -125,7 +252,7 @@
     /***********************
      * Color Palette & Persistent Color Assignment
      ***********************/
-    // A preset palette of pastel colors chosen to be maximally contrasting.
+    // A preset palette of pastel colors chosen for contrast.
     const palette = [
       "hsl(0, 70%, 85%)",
       "hsl(180, 70%, 85%)",
@@ -137,7 +264,6 @@
       "hsl(315, 70%, 85%)"
     ];
     let nextColorIndex = 0;
-    // Get a color from the palette in order.
     function getNextColor() {
       const color = palette[nextColorIndex];
       nextColorIndex = (nextColorIndex + 1) % palette.length;
@@ -155,8 +281,8 @@
         argumentTrees = { "Gun Control Debate": defaultGunControlTree };
         updateLocalStorage();
       }
-      currentTreeName = Object.keys(argumentTrees)[0];
-      currentTree = argumentTrees[currentTreeName];
+      currentTreeName = Object.keys(argumentTrees)[0] || "";
+      currentTree = currentTreeName ? argumentTrees[currentTreeName] : null;
     }
     function updateLocalStorage() {
       localStorage.setItem('argumentTrees', JSON.stringify(argumentTrees));
@@ -188,12 +314,33 @@
         updateLocalStorage();
       }
     };
+    // New: Clear All button – removes all stored arguments.
+    document.getElementById('clearAll').onclick = function() {
+      if (confirm("Are you sure you want to clear all arguments?")) {
+        argumentTrees = {};
+        currentTreeName = "";
+        currentTree = null;
+        updateLocalStorage();
+        populateDropdown();
+        updateVisualization();
+      }
+    };
+    // New: Defaults button – resets to the full default Gun Control Debate.
+    document.getElementById('resetDefaults').onclick = function() {
+      if (confirm("Reset to the default Gun Control Debate?")) {
+        argumentTrees = { "Gun Control Debate": defaultGunControlTree };
+        currentTreeName = "Gun Control Debate";
+        currentTree = argumentTrees[currentTreeName];
+        nextColorIndex = 0; // Reset color assignment.
+        updateLocalStorage();
+        populateDropdown();
+        updateVisualization();
+      }
+    };
 
     /***********************
      * Hierarchy Conversion with Persistent Colors
      ***********************/
-    // Converts an argument node into a hierarchical structure for D3.
-    // For claim nodes, if no color is already assigned, assign one and store it.
     function convertArgumentNode(argNode, path) {
       if (!argNode.color) {
         argNode.color = getNextColor();
@@ -213,7 +360,7 @@
             type: "data",
             originalPath: path.concat(["data", i]),
             raw: d,
-            bgColor: argNode.color  // Inherit parent's color
+            bgColor: argNode.color
           };
           if (d.counter) {
             child.children = [convertArgumentNode(d.counter, path.concat(["data", i, "counter"]))];
@@ -226,7 +373,7 @@
             type: "warrant",
             originalPath: path.concat(["warrants", i]),
             raw: w,
-            bgColor: argNode.color  // Inherit parent's color
+            bgColor: argNode.color
           };
           if (w.counter) {
             child.children = [convertArgumentNode(w.counter, path.concat(["warrants", i, "counter"]))];
@@ -317,18 +464,18 @@
     // Main update function using a force simulation.
     function updateVisualization() {
       gContainer.selectAll("*").remove();
+      if (!currentTree) return;
 
       const rootData = convertArgumentNode(currentTree, []);
       const root = d3.hierarchy(rootData);
       const nodes = root.descendants();
       const links = root.links();
 
-      // For each node, measure its label and compute dimensions.
+      // Compute dimensions for each node (with text wrapping).
       nodes.forEach(d => {
         let label = d.data.name.split(": ")[1];
         const fontSize = 12;
         const maxWidth = 200; // Maximum width before wrapping.
-        // Create a temporary text element to measure size.
         let tempText = svg.append("text")
                           .attr("font-size", fontSize)
                           .attr("font-family", "sans-serif")
@@ -343,7 +490,7 @@
         d.radius = Math.sqrt((nodeWidth/2) ** 2 + (nodeHeight/2) ** 2);
       });
 
-      // Set up a force simulation with a gravity-like force pulling nodes downward by depth.
+      // Set up force simulation with a vertical force to simulate gravity.
       const simulation = d3.forceSimulation(nodes)
         .force("link", d3.forceLink(links).distance(150).strength(1))
         .force("collide", d3.forceCollide().radius(d => d.radius + 10).iterations(2))
@@ -371,8 +518,8 @@
           .on("end", dragEnded)
         );
 
-      // Append shapes conditionally based on node type.
-      // For claim nodes: ellipse.
+      // Append shapes based on node type.
+      // Claim nodes: ellipse.
       nodeGroups.filter(d => d.data.type === "claim")
         .append("ellipse")
         .attr("cx", d => d.nodeWidth/2)
@@ -388,8 +535,7 @@
             updateVisualization();
           }
         });
-
-      // For data nodes: rectangle.
+      // Data nodes: rectangle.
       nodeGroups.filter(d => d.data.type === "data")
         .append("rect")
         .attr("width", d => d.nodeWidth)
@@ -403,12 +549,10 @@
             updateVisualization();
           }
         });
-
-      // For warrant nodes: triangle (polygon).
+      // Warrant nodes: triangle (polygon).
       nodeGroups.filter(d => d.data.type === "warrant")
         .append("polygon")
         .attr("points", d => {
-          // Points: bottom left, top center, bottom right.
           return `0,${d.nodeHeight} ${d.nodeWidth/2},0 ${d.nodeWidth},${d.nodeHeight}`;
         })
         .attr("fill", d => d.data.bgColor)
@@ -421,7 +565,7 @@
           }
         });
 
-      // Append text for all nodes, centered.
+      // Append centered text for all nodes.
       nodeGroups.append("text")
         .attr("x", d => d.nodeWidth/2)
         .attr("y", d => d.nodeHeight/2)
