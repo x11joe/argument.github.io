@@ -55,7 +55,7 @@
       stroke-width: 1.5px;
     }
     /* Overlay for sources */
-    #sourceOverlay {
+    #sourceOverlay, #pasteOverlay {
       position: absolute;
       top: 50%;
       left: 50%;
@@ -70,19 +70,27 @@
       display: none;
       box-shadow: 0 0 10px rgba(0,0,0,0.5);
     }
-    #sourceOverlay h3 {
+    #sourceOverlay h3, #pasteOverlay h3 {
       margin-top: 0;
     }
     #sourceOverlay a {
       color: blue;
       text-decoration: underline;
     }
-    #closeOverlay {
+    #closeOverlay, #closePasteOverlay {
       position: absolute;
       top: 5px;
       right: 10px;
       cursor: pointer;
       font-weight: bold;
+    }
+    /* Styling for the Paste JSON overlay */
+    #pasteOverlay textarea {
+      width: 100%;
+      height: 150px;
+    }
+    #pasteOverlay button {
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -92,13 +100,24 @@
     <button id="newArgument">New Argument Tree</button>
     <button id="clearAll">Clear All</button>
     <button id="loadExternal">Load External Argument</button>
+    <button id="pasteJSON">Paste JSON</button>
   </div>
   <svg id="canvas" width="100%" height="100%"></svg>
+  
   <!-- Overlay for displaying sources -->
   <div id="sourceOverlay">
     <div id="closeOverlay">X</div>
     <h3>Sources</h3>
     <ul id="sourceList"></ul>
+  </div>
+  
+  <!-- Overlay for pasting JSON -->
+  <div id="pasteOverlay">
+    <div id="closePasteOverlay">X</div>
+    <h3>Paste Your JSON</h3>
+    <textarea id="pasteArea" placeholder='Paste JSON here (must follow the proper format)...'></textarea>
+    <br>
+    <button id="loadPasted">Load JSON</button>
   </div>
 
   <!-- D3.js library -->
@@ -196,7 +215,6 @@
 
     // Load External Argument – using raw URLs from GitHub.
     document.getElementById('loadExternal').onclick = function() {
-      // Use the raw URL for the index file:
       d3.json('https://raw.githubusercontent.com/x11joe/argument.github.io/main/arguments/index.json')
         .then(function(indexData) {
           if (indexData && indexData.arguments && indexData.arguments.length > 0) {
@@ -227,6 +245,31 @@
         .catch(function(err) {
           alert("Error scanning folder: " + err);
         });
+    };
+
+    // Paste JSON overlay functions.
+    document.getElementById('pasteJSON').onclick = function() {
+      document.getElementById('pasteOverlay').style.display = "block";
+    };
+    document.getElementById('closePasteOverlay').onclick = function() {
+      document.getElementById('pasteOverlay').style.display = "none";
+    };
+    document.getElementById('loadPasted').onclick = function() {
+      const text = document.getElementById('pasteArea').value;
+      try {
+        const parsed = JSON.parse(text);
+        // Give it a name based on timestamp.
+        const name = "Pasted JSON " + new Date().toLocaleString();
+        argumentTrees[name] = parsed;
+        currentTreeName = name;
+        currentTree = parsed;
+        updateLocalStorage();
+        populateDropdown();
+        updateVisualization();
+        document.getElementById('pasteOverlay').style.display = "none";
+      } catch(e) {
+        alert("Error parsing JSON: " + e.message);
+      }
     };
 
     /***********************
@@ -395,7 +438,7 @@
       const root = d3.hierarchy(rootData);
       
       // Use d3.tree layout with fixed node size for better spacing.
-      // Here, nodeSize([250, 150]) means nodes will be spaced 250px apart horizontally and 150px vertically.
+      // Here, nodeSize([250, 150]) sets fixed spacing between nodes.
       const treeLayout = d3.tree()
         .nodeSize([250, 150])
         .separation((a, b) => a.parent === b.parent ? 1 : 1.5);
