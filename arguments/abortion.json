@@ -110,7 +110,63 @@
             "text": "Ethical debates center around the moral status of the fetus versus the rights of the mother.",
             "sources": [
               { "text": "Ethical Debates", "url": "https://www.ethicaldebates.org" }
-            ]
+            ],
+            "counter": {
+              "claim": "However, some argue that focusing solely on women's rights may inadvertently discount the ethical concerns regarding potential life.",
+              "sources": [
+                { "text": "Ethics of Potential Life", "url": "https://www.ethicsofpotentiallife.org" }
+              ],
+              "data": [
+                {
+                  "text": "Philosophers contend that the moral status of a fetus warrants significant ethical consideration.",
+                  "sources": [
+                    { "text": "Philosophical Perspectives", "url": "https://www.philosophicalperspectives.org" }
+                  ]
+                },
+                {
+                  "text": "Religious scholars argue that life begins at conception and that this view should inform policy.",
+                  "sources": [
+                    { "text": "Religious Perspectives", "url": "https://www.religiousperspectives.org" }
+                  ],
+                  "counter": {
+                    "claim": "In response, proponents of legal abortion assert that while these ethical considerations are important, they do not justify denying safe access to abortion.",
+                    "sources": [
+                      { "text": "Women's Health Advocacy", "url": "https://www.womenshealthadvocacy.org" }
+                    ],
+                    "data": [
+                      {
+                        "text": "Empirical evidence shows that restricting abortion leads to increased unsafe procedures, thereby endangering women's lives.",
+                        "sources": [
+                          { "text": "Unsafe Procedures Study", "url": "https://www.unsafestudies.org" }
+                        ]
+                      },
+                      {
+                        "text": "Multiple democratic nations have legal frameworks that prioritize women's health and autonomy even while acknowledging ethical debates.",
+                        "sources": [
+                          { "text": "International Legal Standards", "url": "https://www.internationallaws.org" }
+                        ]
+                      }
+                    ],
+                    "warrants": [
+                      {
+                        "text": "Ensuring women's safety and autonomy is a core value of modern legal systems.",
+                        "sources": [
+                          { "text": "Legal Safety Principles", "url": "https://www.legalsafety.org" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ],
+              "warrants": [
+                {
+                  "text": "While ethical considerations regarding potential life are important, they must be balanced against the immediate health and rights of women.",
+                  "sources": [
+                    { "text": "Balanced Ethics", "url": "https://www.balancedehtics.org" }
+                  ]
+                }
+              ]
+            }
           },
           {
             "text": "Religious perspectives often influence public opinion on abortion.",
@@ -129,18 +185,6 @@
             "sources": [
               { "text": "Public Opinion Surveys", "url": "https://www.publicopinions.org" }
             ]
-          },
-          {
-            "text": "Some studies suggest that increased access to abortion might correlate with reduced investment in prenatal care.",
-            "sources": [
-              { "text": "Prenatal Investment", "url": "https://www.prenatalinvestment.org" }
-            ]
-          },
-          {
-            "text": "Political ideologies significantly shape the framing of abortion rights.",
-            "sources": [
-              { "text": "Political Ideology Study", "url": "https://www.politicalideology.org" }
-            ]
           }
         ],
         "warrants": [
@@ -151,33 +195,9 @@
             ]
           },
           {
-            "text": "Legal protections ensure that decisions about one's body remain personal and free from state interference.",
+            "text": "Legal protections ensure that decisions about one's body remain personal and free from undue state interference.",
             "sources": [
               { "text": "Legal Protections", "url": "https://www.legalprotections.org" }
-            ]
-          },
-          {
-            "text": "Empirical data shows that restricting access leads to negative health and social outcomes.",
-            "sources": [
-              { "text": "Empirical Data on Autonomy", "url": "https://www.empiricalautonomy.org" }
-            ]
-          },
-          {
-            "text": "Case studies from multiple countries highlight the benefits of reproductive choice.",
-            "sources": [
-              { "text": "International Case Studies", "url": "https://www.casestudies.org" }
-            ]
-          },
-          {
-            "text": "Philosophical arguments support bodily autonomy as a fundamental human right.",
-            "sources": [
-              { "text": "Philosophical Perspectives", "url": "https://www.philosophicalperspectives.org" }
-            ]
-          },
-          {
-            "text": "Historical shifts in reproductive rights have advanced gender equality over time.",
-            "sources": [
-              { "text": "Historical Shifts", "url": "https://www.historicalshifts.org" }
             ]
           }
         ]
