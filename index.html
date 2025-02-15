@@ -206,7 +206,7 @@
         argumentTrees = {};
         currentTreeName = "";
         currentTree = null;
-        localStorage.clear(); // Clear all localStorage data.
+        localStorage.clear(); // Clears all localStorage data.
         populateDropdown();
         updateVisualization();
       }
@@ -487,42 +487,18 @@
         .attr("cy", d => d.nodeHeight/2)
         .attr("rx", d => d.nodeWidth/2)
         .attr("ry", d => d.nodeHeight/2)
-        .attr("fill", d => d.data.bgColor)
-        .on("dblclick", (event, d) => {
-          let currentText = d.data.name.split(": ")[1];
-          let newText = prompt("Edit text:", currentText);
-          if(newText !== null) {
-            updateArgumentText(d.data.originalPath, newText);
-            updateVisualization();
-          }
-        });
+        .attr("fill", d => d.data.bgColor);
       // Data nodes as rectangles.
       nodeGroups.filter(d => d.data.type === "data")
         .append("rect")
         .attr("width", d => d.nodeWidth)
         .attr("height", d => d.nodeHeight)
-        .attr("fill", d => d.data.bgColor)
-        .on("dblclick", (event, d) => {
-          let currentText = d.data.name.split(": ")[1];
-          let newText = prompt("Edit text:", currentText);
-          if(newText !== null) {
-            updateArgumentText(d.data.originalPath, newText);
-            updateVisualization();
-          }
-        });
+        .attr("fill", d => d.data.bgColor);
       // Warrant nodes as triangles.
       nodeGroups.filter(d => d.data.type === "warrant")
         .append("polygon")
         .attr("points", d => `0,${d.nodeHeight+10} ${d.nodeWidth/2},-10 ${d.nodeWidth},${d.nodeHeight+10}`)
-        .attr("fill", d => d.data.bgColor)
-        .on("dblclick", (event, d) => {
-          let currentText = d.data.name.split(": ")[1];
-          let newText = prompt("Edit text:", currentText);
-          if(newText !== null) {
-            updateArgumentText(d.data.originalPath, newText);
-            updateVisualization();
-          }
-        });
+        .attr("fill", d => d.data.bgColor);
       
       // Append centered text.
       nodeGroups.append("text")
@@ -538,6 +514,17 @@
         });
       
       /*********************** Interactive Buttons ***********************/
+      // Attach dblclick handler on the entire node group for editing.
+      nodeGroups.on("dblclick", (event, d) => {
+        // The interactive buttons already stop propagation.
+        let currentText = d.data.name.split(": ")[1];
+        let newText = prompt("Edit text:", currentText);
+        if(newText !== null) {
+          updateArgumentText(d.data.originalPath, newText);
+          updateVisualization();
+        }
+      });
+      
       // For data/warrant nodes without a counter, add an "Add Counter" (+) button.
       nodeGroups.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
         .each(function(d) {
@@ -550,7 +537,7 @@
           } else {
             // For triangles: bottom left of the triangle's bounding box.
             plusCx = 5;
-            plusCy = d.nodeHeight + 10 - 10; // equals d.nodeHeight
+            plusCy = d.nodeHeight; // d.nodeHeight equals (triangle bottom - 10) as set above.
           }
           group.append("circle")
             .attr("class", "button-circle")
