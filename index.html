@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Argument Tree Visualizer</title>
+  <title>Argument Tree Visualizer – Enhanced</title>
   <style>
     body {
       font-family: sans-serif;
@@ -46,6 +46,12 @@
       stroke-width: 1px;
       cursor: pointer;
     }
+    .collapse-circle {
+      fill: lightblue;
+      stroke: darkblue;
+      stroke-width: 1px;
+      cursor: pointer;
+    }
     .link {
       fill: none;
       stroke: #ccc;
@@ -64,14 +70,14 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script>
     /***********************
-     * Global Variables
+     * Global Variables & Default Tree
      ***********************/
     let argumentTrees = {};
     let currentTreeName = "";
     let currentTree = {};
 
     // Default Gun Control Debate tree – note the structure:
-    // each argument node has a "claim" (or for data/warrant items, a "text") plus arrays "data" and "warrants".
+    // Each claim node has a "claim" property plus arrays "data" and "warrants".
     const defaultGunControlTree = {
       claim: "Gun control is essential for reducing violent crime.",
       data: [
@@ -176,10 +182,9 @@
     /***********************
      * Conversion: Argument to Hierarchy for D3
      ***********************/
-    // We convert our custom argument structure into a hierarchical object.
-    // Each node gets an "originalPath" so we can later update the underlying tree.
+    // Converts our custom argument node into a hierarchical object for D3.
+    // It also respects a "collapsed" property (if true, children won’t be added).
     function convertArgumentNode(argNode, path) {
-      // For a claim node (either root or counter branch)
       let newNode = {
         name: "Claim: " + argNode.claim,
         type: "claim",
@@ -187,32 +192,32 @@
         raw: argNode
       };
       newNode.children = [];
-      // Data items – original path for a data node is: [ "data", index ]
-      argNode.data.forEach((d, i) => {
-        let child = {
-          name: "Data: " + d.text,
-          type: "data",
-          originalPath: path.concat(["data", i]),
-          raw: d
-        };
-        if(d.counter) {
-          child.children = [convertArgumentNode(d.counter, path.concat(["data", i, "counter"]))];
-        }
-        newNode.children.push(child);
-      });
-      // Warrant items – original path for a warrant node is: [ "warrants", index ]
-      argNode.warrants.forEach((w, i) => {
-        let child = {
-          name: "Warrant: " + w.text,
-          type: "warrant",
-          originalPath: path.concat(["warrants", i]),
-          raw: w
-        };
-        if(w.counter) {
-          child.children = [convertArgumentNode(w.counter, path.concat(["warrants", i, "counter"]))];
-        }
-        newNode.children.push(child);
-      });
+      if (!argNode.collapsed) {
+        argNode.data.forEach((d, i) => {
+          let child = {
+            name: "Data: " + d.text,
+            type: "data",
+            originalPath: path.concat(["data", i]),
+            raw: d
+          };
+          if (d.counter) {
+            child.children = [convertArgumentNode(d.counter, path.concat(["data", i, "counter"]))];
+          }
+          newNode.children.push(child);
+        });
+        argNode.warrants.forEach((w, i) => {
+          let child = {
+            name: "Warrant: " + w.text,
+            type: "warrant",
+            originalPath: path.concat(["warrants", i]),
+            raw: w
+          };
+          if (w.counter) {
+            child.children = [convertArgumentNode(w.counter, path.concat(["warrants", i, "counter"]))];
+          }
+          newNode.children.push(child);
+        });
+      }
       return newNode;
     }
 
@@ -226,8 +231,7 @@
       }
       return obj;
     }
-    // Update the text for a node. For claim nodes, update the "claim" property;
-    // for data/warrant nodes, update the "text" property.
+    // Update the text for a node.
     function updateArgumentText(path, newText) {
       let parent = getObjectAtPath(currentTree, path.slice(0, -1));
       let last = path[path.length - 1];
@@ -239,8 +243,6 @@
       updateLocalStorage();
     }
     // Delete a node given its originalPath.
-    // If the node is in an array (data or warrants), remove it;
-    // if it's a counter branch, set it to null.
     function deleteArgumentNode(path) {
       let parentPath = path.slice(0, path.length - 1);
       let last = path[path.length - 1];
@@ -279,7 +281,9 @@
       }));
 
     // Tree layout configuration.
-    const treeLayout = d3.tree().size([width - 100, height - 100]);
+    const treeLayout = d3.tree()
+      .size([width - 100, height - 100])
+      .separation((a, b) => a.parent === b.parent ? 1 : 1.5);
 
     /***********************
      * Update Visualization
@@ -295,7 +299,7 @@
       gContainer.selectAll(".node").remove();
 
       // Draw links.
-      const link = gContainer.selectAll(".link")
+      gContainer.selectAll(".link")
         .data(root.links())
         .enter()
         .append("path")
@@ -324,7 +328,7 @@
                           .y(d => d.y + 20));
           }));
 
-      // Node rectangle
+      // Node rectangle (initially with a minimum width)
       node.append("rect")
         .attr("width", 100)
         .attr("height", 40)
@@ -332,14 +336,15 @@
         .attr("y", 0)
         .on("dblclick", (event, d) => {
           // On double-click, prompt to edit the node's text.
-          let newText = prompt("Edit text:", (d.data.name.split(": ")[1]));
+          let currentText = d.data.name.split(": ")[1];
+          let newText = prompt("Edit text:", currentText);
           if (newText !== null) {
             updateArgumentText(d.data.originalPath, newText);
             updateVisualization();
           }
         });
 
-      // Node label
+      // Node label – centered in the rectangle.
       node.append("text")
         .attr("x", 50)
         .attr("y", 25)
@@ -347,29 +352,117 @@
         .attr("pointer-events", "none")
         .text(d => d.data.name);
 
-      // Add "Add Counter" button for data or warrant nodes that do not yet have a counter.
+      // Adjust rectangle width to fit text.
+      node.each(function(d) {
+        let textEl = d3.select(this).select("text");
+        let textWidth = textEl.node().getComputedTextLength();
+        let newWidth = textWidth + 20;
+        d3.select(this).select("rect").attr("width", newWidth);
+        textEl.attr("x", newWidth/2);
+        // Store new width for later positioning of buttons.
+        d.data.rectWidth = newWidth;
+      });
+
+      /***********************
+       * Node-specific Buttons
+       ***********************/
+
+      // For data/warrant nodes that do not have a counter branch, add an "Add Counter" button.
       node.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
           .append("circle")
           .attr("class", "button-circle")
-          .attr("cx", 90)
+          .attr("cx", function(d) { return d.data.rectWidth - 10; })
           .attr("cy", 35)
           .attr("r", 8)
           .on("click", (event, d) => {
-            // Prevent zoom from triggering.
             event.stopPropagation();
             addCounterToNode(d.data.originalPath);
             updateVisualization();
           });
       node.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
           .append("text")
-          .attr("x", 90)
+          .attr("x", function(d) { return d.data.rectWidth - 10; })
           .attr("y", 39)
           .attr("text-anchor", "middle")
           .attr("font-size", "10px")
           .attr("pointer-events", "none")
           .text("+");
 
-      // Add "delete" button for nodes that are not the root.
+      // For claim nodes, add "Add Data" and "Add Warrant" buttons.
+      node.filter(d => d.data.type === "claim")
+          .each(function(d) {
+            // Only add these buttons to claim nodes (even if collapsed) so you can continue building.
+            let group = d3.select(this);
+            let rectWidth = d.data.rectWidth;
+            // Add Data button (circle with "D")
+            group.append("circle")
+              .attr("class", "button-circle")
+              .attr("cx", rectWidth + 10)
+              .attr("cy", 20)
+              .attr("r", 8)
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                let newText = prompt("New Data text:");
+                if(newText) {
+                  d.data.raw.data.push({ text: newText, counter: null });
+                  updateLocalStorage();
+                  updateVisualization();
+                }
+              });
+            group.append("text")
+              .attr("x", rectWidth + 10)
+              .attr("y", 24)
+              .attr("text-anchor", "middle")
+              .attr("font-size", "10px")
+              .attr("pointer-events", "none")
+              .text("D");
+            // Add Warrant button (circle with "W")
+            group.append("circle")
+              .attr("class", "button-circle")
+              .attr("cx", rectWidth + 30)
+              .attr("cy", 20)
+              .attr("r", 8)
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                let newText = prompt("New Warrant text:");
+                if(newText) {
+                  d.data.raw.warrants.push({ text: newText, counter: null });
+                  updateLocalStorage();
+                  updateVisualization();
+                }
+              });
+            group.append("text")
+              .attr("x", rectWidth + 30)
+              .attr("y", 24)
+              .attr("text-anchor", "middle")
+              .attr("font-size", "10px")
+              .attr("pointer-events", "none")
+              .text("W");
+          });
+
+      // For claim nodes that have children (i.e. potential to collapse/expand), add a toggle button.
+      node.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
+          .append("circle")
+          .attr("class", "collapse-circle")
+          .attr("cx", -10)
+          .attr("cy", 10)
+          .attr("r", 8)
+          .on("click", (event, d) => {
+            event.stopPropagation();
+            // Toggle collapsed state.
+            d.data.raw.collapsed = !d.data.raw.collapsed;
+            updateVisualization();
+          });
+      node.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
+          .append("text")
+          .attr("x", -10)
+          .attr("y", 14)
+          .attr("text-anchor", "middle")
+          .attr("font-size", "10px")
+          .attr("pointer-events", "none")
+          .text(d => d.data.raw.collapsed ? "+" : "-");
+
+      // Add delete button for non-root nodes.
       node.filter(d => d.depth > 0)
           .append("circle")
           .attr("class", "delete-circle")
