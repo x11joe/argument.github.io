@@ -194,9 +194,10 @@
       }
     };
 
-    // Load External Argument – expects an external file index (e.g. arguments/index.json)
+    // Load External Argument – using raw URLs from GitHub.
     document.getElementById('loadExternal').onclick = function() {
-      d3.json('arguments/index.json')
+      // Use the raw URL for the index file:
+      d3.json('https://raw.githubusercontent.com/x11joe/argument.github.io/main/arguments/index.json')
         .then(function(indexData) {
           if (indexData && indexData.arguments && indexData.arguments.length > 0) {
             let options = indexData.arguments.map((f, i) => i + ": " + f).join("\n");
@@ -204,7 +205,7 @@
             let idx = parseInt(choice);
             if (!isNaN(idx) && idx >= 0 && idx < indexData.arguments.length) {
               let fileName = indexData.arguments[idx];
-              d3.json('arguments/' + fileName)
+              d3.json('https://raw.githubusercontent.com/x11joe/argument.github.io/main/arguments/' + fileName)
                 .then(function(data) {
                   argumentTrees[fileName] = data;
                   currentTreeName = fileName;
@@ -231,7 +232,6 @@
     /***********************
      * Hierarchy Conversion with Persistent Colors
      ***********************/
-    // Converts the external argument JSON into a hierarchical object for D3.
     function convertArgumentNode(argNode, path) {
       if (!argNode.color) {
         argNode.color = getNextColor();
@@ -386,17 +386,17 @@
       gContainer.selectAll("*").remove();
       if (!currentTree) return;
       
-      // Convert the custom argument JSON to a hierarchical object.
+      // Convert custom argument JSON to hierarchical object.
       const rootData = convertArgumentNode(currentTree, []);
       const root = d3.hierarchy(rootData);
       
-      // Use d3.tree layout for a clear hierarchical arrangement.
+      // Use d3.tree layout for clear hierarchical arrangement.
       const treeLayout = d3.tree()
         .size([width - 160, height - 100])
         .separation((a, b) => a.parent === b.parent ? 1 : 2);
       treeLayout(root);
       
-      // For each node, measure the label to compute shape dimensions.
+      // For each node, measure label to compute shape dimensions.
       root.descendants().forEach(d => {
         let label = d.data.name.split(": ")[1];
         const fontSize = 12, maxWidth = 200;
