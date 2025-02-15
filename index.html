@@ -538,29 +538,42 @@
         });
       
       /*********************** Interactive Buttons ***********************/
-      // For data/warrant nodes without a counter, add an "Add Counter" button.
-      nodeGroups.filter(d => (d.data.type==="data" || d.data.type==="warrant") && !d.data.raw.counter)
-        .append("circle")
-        .attr("class", "button-circle")
-        .attr("cx", d => d.nodeWidth - 10)
-        .attr("cy", d => d.nodeHeight - 10)
-        .attr("r", 8)
-        .on("click", (event, d) => {
-          event.stopPropagation();
-          addCounterToNode(d.data.originalPath);
-          updateVisualization();
-        });
-      nodeGroups.filter(d => (d.data.type==="data" || d.data.type==="warrant") && !d.data.raw.counter)
-        .append("text")
-        .attr("x", d => d.nodeWidth - 10)
-        .attr("y", d => d.nodeHeight - 6)
-        .attr("text-anchor", "middle")
-        .attr("font-size", "10px")
-        .text("+")
-        .on("click", (event, d) => {
-          event.stopPropagation();
-          addCounterToNode(d.data.originalPath);
-          updateVisualization();
+      // For data/warrant nodes without a counter, add an "Add Counter" (+) button.
+      nodeGroups.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
+        .each(function(d) {
+          const group = d3.select(this);
+          let plusCx, plusCy;
+          if(d.data.type === "data") {
+            // For rectangles: bottom left of the rectangle.
+            plusCx = 5;
+            plusCy = d.nodeHeight - 10;
+          } else {
+            // For triangles: bottom left relative to the triangle's bounding box.
+            plusCx = 5;
+            // The triangle's bottom is at d.nodeHeight + 10, so placing inside gives:
+            plusCy = d.nodeHeight + 10 - 10; // equals d.nodeHeight
+          }
+          group.append("circle")
+            .attr("class", "button-circle")
+            .attr("cx", plusCx)
+            .attr("cy", plusCy)
+            .attr("r", 8)
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              addCounterToNode(d.data.originalPath);
+              updateVisualization();
+            });
+          group.append("text")
+            .attr("x", plusCx)
+            .attr("y", plusCy + 4)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .text("+")
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              addCounterToNode(d.data.originalPath);
+              updateVisualization();
+            });
         });
       
       // For claim nodes, add "Add Data" and "Add Warrant" buttons.
@@ -714,7 +727,7 @@
                 updateVisualization();
               }
             });
-          // Sources button at the bottom right of the triangle.
+          // Sources button at bottom right of the triangle.
           if(d.data.raw.sources && d.data.raw.sources.length > 0) {
             group.append("circle")
               .attr("class", "source-circle")
