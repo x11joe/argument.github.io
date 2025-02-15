@@ -206,15 +206,15 @@
         argumentTrees = {};
         currentTreeName = "";
         currentTree = null;
-        updateLocalStorage();
+        localStorage.clear(); // Clear all localStorage data.
         populateDropdown();
         updateVisualization();
       }
     };
 
-    // Load External Argument – using raw URLs from GitHub.
+    // Load External Argument – using a timestamp to bypass caching.
     document.getElementById('loadExternal').onclick = function() {
-      d3.json('https://raw.githubusercontent.com/x11joe/argument.github.io/main/arguments/index.json')
+      d3.json('https://raw.githubusercontent.com/x11joe/argument.github.io/main/arguments/index.json?t=' + Date.now())
         .then(function(indexData) {
           if (indexData && indexData.arguments && indexData.arguments.length > 0) {
             let options = indexData.arguments.map((f, i) => i + ": " + f).join("\n");
@@ -222,7 +222,7 @@
             let idx = parseInt(choice);
             if (!isNaN(idx) && idx >= 0 && idx < indexData.arguments.length) {
               let fileName = indexData.arguments[idx];
-              d3.json('https://raw.githubusercontent.com/x11joe/argument.github.io/main/arguments/' + fileName)
+              d3.json('https://raw.githubusercontent.com/x11joe/argument.github.io/main/arguments/' + fileName + '?t=' + Date.now())
                 .then(function(data) {
                   argumentTrees[fileName] = data;
                   currentTreeName = fileName;
@@ -548,9 +548,8 @@
             plusCx = 5;
             plusCy = d.nodeHeight - 10;
           } else {
-            // For triangles: bottom left relative to the triangle's bounding box.
+            // For triangles: bottom left of the triangle's bounding box.
             plusCx = 5;
-            // The triangle's bottom is at d.nodeHeight + 10, so placing inside gives:
             plusCy = d.nodeHeight + 10 - 10; // equals d.nodeHeight
           }
           group.append("circle")
