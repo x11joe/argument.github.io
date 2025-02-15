@@ -165,7 +165,6 @@
       if (saved) {
         argumentTrees = JSON.parse(saved);
       } else {
-        // Start empty (external files will be loaded)
         argumentTrees = {};
         updateLocalStorage();
       }
@@ -258,7 +257,6 @@
       const text = document.getElementById('pasteArea').value;
       try {
         const parsed = JSON.parse(text);
-        // Give it a name based on timestamp.
         const name = "Pasted JSON " + new Date().toLocaleString();
         argumentTrees[name] = parsed;
         currentTreeName = name;
@@ -437,14 +435,13 @@
       const rootData = convertArgumentNode(currentTree, []);
       const root = d3.hierarchy(rootData);
       
-      // Use d3.tree layout with fixed node size for better spacing.
-      // Here, nodeSize([250, 150]) sets fixed spacing between nodes.
+      // Use d3.tree layout with fixed node size.
       const treeLayout = d3.tree()
         .nodeSize([250, 150])
         .separation((a, b) => a.parent === b.parent ? 1 : 1.5);
       treeLayout(root);
       
-      // For each node, measure the label to compute shape dimensions.
+      // Measure each node label to compute dimensions.
       root.descendants().forEach(d => {
         let label = d.data.name.split(": ")[1];
         const fontSize = 12, maxWidth = 200;
@@ -461,7 +458,7 @@
         d.nodeHeight = nodeHeight;
       });
       
-      // Draw links as vertical curves.
+      // Draw links.
       const linkGenerator = d3.linkVertical()
                               .x(d => d.x + d.nodeWidth/2)
                               .y(d => d.y + d.nodeHeight/2);
@@ -482,7 +479,7 @@
         .attr("class", "node")
         .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
       
-      // Append shapes based on type.
+      // Append shapes.
       // Claim nodes as ellipses.
       nodeGroups.filter(d => d.data.type === "claim")
         .append("ellipse")
@@ -630,32 +627,115 @@
                 updateVisualization();
               }
             });
-          // Note: Sources button is no longer added for claim nodes.
+          // Note: Sources button is not added for claim nodes.
         });
       
-      // Add sources button for data and warrant nodes if sources exist.
-      nodeGroups.filter(d => (d.data.type==="data" || d.data.type==="warrant") && d.data.raw.sources && d.data.raw.sources.length > 0)
+      // Add sources and delete buttons for Data nodes.
+      nodeGroups.filter(d => d.data.type==="data" && d.depth > 0)
         .each(function(d) {
           const group = d3.select(this);
+          // Delete button at upper left of rectangle.
           group.append("circle")
-            .attr("class", "source-circle")
-            .attr("cx", d.nodeWidth + 10)
-            .attr("cy", d.nodeHeight/2 - 10)
+            .attr("class", "delete-circle")
+            .attr("cx", 5)
+            .attr("cy", 5)
             .attr("r", 8)
             .on("click", (event, d) => {
               event.stopPropagation();
-              showSources(d.data.raw.sources);
+              if(confirm("Delete this node?")){
+                deleteArgumentNode(d.data.originalPath);
+                updateVisualization();
+              }
             });
           group.append("text")
-            .attr("x", d.nodeWidth + 10)
-            .attr("y", d.nodeHeight/2 - 6)
+            .attr("x", 5)
+            .attr("y", 9)
             .attr("text-anchor", "middle")
             .attr("font-size", "10px")
-            .text("S")
+            .text("×")
             .on("click", (event, d) => {
               event.stopPropagation();
-              showSources(d.data.raw.sources);
+              if(confirm("Delete this node?")){
+                deleteArgumentNode(d.data.originalPath);
+                updateVisualization();
+              }
             });
+          // Sources button at bottom right of rectangle.
+          if(d.data.raw.sources && d.data.raw.sources.length > 0) {
+            group.append("circle")
+              .attr("class", "source-circle")
+              .attr("cx", d.nodeWidth - 5)
+              .attr("cy", d.nodeHeight - 5)
+              .attr("r", 8)
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                showSources(d.data.raw.sources);
+              });
+            group.append("text")
+              .attr("x", d.nodeWidth - 5)
+              .attr("y", d.nodeHeight - 1)
+              .attr("text-anchor", "middle")
+              .attr("font-size", "10px")
+              .text("S")
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                showSources(d.data.raw.sources);
+              });
+          }
+        });
+      
+      // Add sources and delete buttons for Warrant nodes.
+      nodeGroups.filter(d => d.data.type==="warrant" && d.depth > 0)
+        .each(function(d) {
+          const group = d3.select(this);
+          // Delete button at the top of the triangle.
+          group.append("circle")
+            .attr("class", "delete-circle")
+            .attr("cx", d.nodeWidth/2)
+            .attr("cy", -18)
+            .attr("r", 8)
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              if(confirm("Delete this node?")){
+                deleteArgumentNode(d.data.originalPath);
+                updateVisualization();
+              }
+            });
+          group.append("text")
+            .attr("x", d.nodeWidth/2)
+            .attr("y", -14)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .text("×")
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              if(confirm("Delete this node?")){
+                deleteArgumentNode(d.data.originalPath);
+                updateVisualization();
+              }
+            });
+          // Sources button at the bottom right of the triangle.
+          if(d.data.raw.sources && d.data.raw.sources.length > 0) {
+            group.append("circle")
+              .attr("class", "source-circle")
+              .attr("cx", d.nodeWidth - 10)
+              .attr("cy", d.nodeHeight + 2)
+              .attr("r", 8)
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                showSources(d.data.raw.sources);
+              });
+            group.append("text")
+              .attr("x", d.nodeWidth - 10)
+              .attr("y", d.nodeHeight + 6)
+              .attr("text-anchor", "middle")
+              .attr("font-size", "10px")
+              .text("S")
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                showSources(d.data.raw.sources);
+              });
+          }
         });
       
       // For claim nodes with children, add a collapse/expand toggle.
@@ -681,35 +761,6 @@
           event.stopPropagation();
           d.data.raw.collapsed = !d.data.raw.collapsed;
           updateVisualization();
-        });
-      
-      // Add a delete button for non-root nodes.
-      nodeGroups.filter(d => d.depth > 0)
-        .append("circle")
-        .attr("class", "delete-circle")
-        .attr("cx", 20)
-        .attr("cy", 10)
-        .attr("r", 8)
-        .on("click", (event, d) => {
-          event.stopPropagation();
-          if(confirm("Delete this node?")){
-            deleteArgumentNode(d.data.originalPath);
-            updateVisualization();
-          }
-        });
-      nodeGroups.filter(d => d.depth > 0)
-        .append("text")
-        .attr("x", 20)
-        .attr("y", 14)
-        .attr("text-anchor", "middle")
-        .attr("font-size", "10px")
-        .text("×")
-        .on("click", (event, d) => {
-          event.stopPropagation();
-          if(confirm("Delete this node?")){
-            deleteArgumentNode(d.data.originalPath);
-            updateVisualization();
-          }
         });
     }
 
