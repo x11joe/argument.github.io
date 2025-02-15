@@ -2,46 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Argument Tree Demo</title>
+  <title>Argument Tree Visualizer</title>
   <style>
     body {
       font-family: sans-serif;
-      padding: 20px;
+      margin: 0;
+      overflow: hidden;
     }
     #controls {
-      margin-bottom: 20px;
-    }
-    .node {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 5px;
       border: 1px solid #ccc;
-      padding: 10px;
-      margin: 10px 0;
+      border-radius: 4px;
+      z-index: 10;
     }
-    .node > input {
-      width: 80%;
+    select, button {
+      margin-right: 5px;
+      font-size: 14px;
     }
-    .section {
-      margin-left: 20px;
-      margin-top: 10px;
-      padding-left: 10px;
-      border-left: 2px dashed #aaa;
+    .node rect {
+      fill: #fff;
+      stroke: steelblue;
+      stroke-width: 1.5px;
+      rx: 5;
+      ry: 5;
     }
-    .section > div.section-header {
-      font-weight: bold;
-      margin-bottom: 5px;
+    .node text {
+      pointer-events: none;
+      font-size: 12px;
     }
-    .item {
-      margin-bottom: 5px;
+    .button-circle {
+      fill: lightgreen;
+      stroke: darkgreen;
+      stroke-width: 1px;
+      cursor: pointer;
     }
-    .item input {
-      width: 70%;
+    .delete-circle {
+      fill: salmon;
+      stroke: darkred;
+      stroke-width: 1px;
+      cursor: pointer;
     }
-    .counter {
-      margin-top: 5px;
-      padding-left: 10px;
-      border-left: 2px dotted #888;
-    }
-    button {
-      margin-left: 5px;
+    .link {
+      fill: none;
+      stroke: #ccc;
+      stroke-width: 1.5px;
     }
   </style>
 </head>
@@ -50,334 +58,349 @@
     <select id="argumentSelect"></select>
     <button id="newArgument">New Argument Tree</button>
   </div>
-  <div id="treeContainer"></div>
-  
+  <svg width="1200" height="800"></svg>
+
+  <!-- D3.js library -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <script>
-  // Global storage for trees and current selection
-  let argumentTrees = {};
-  let currentTreeName = "";
-  let currentTree = {};
+    /***********************
+     * Global Variables
+     ***********************/
+    let argumentTrees = {};
+    let currentTreeName = "";
+    let currentTree = {};
 
-  // The default Gun Control Debate tree (using nested counter branches)
-  const defaultGunControlTree = {
-    "claim": "Gun control is essential for reducing violent crime.",
-    "data": [
-      {
-        "text": "Studies in Australia show a significant drop in gun violence after strict gun control measures.",
-        "counter": {
-          "claim": "However, Australia's societal context differs greatly from that of the US, making comparisons unreliable.",
-          "data": [
-            {
-              "text": "Cultural, economic, and legal differences make the Australian model not directly applicable.",
-              "counter": {
-                "claim": "Yet, many of these factors exist in the US too, meaning the argument still holds merit.",
-                "data": [
-                  { "text": "Further analysis shows some similarities between the countries.", "counter": null }
-                ],
-                "warrants": []
+    // Default Gun Control Debate tree – note the structure:
+    // each argument node has a "claim" (or for data/warrant items, a "text") plus arrays "data" and "warrants".
+    const defaultGunControlTree = {
+      claim: "Gun control is essential for reducing violent crime.",
+      data: [
+        {
+          text: "Studies in Australia show a significant drop in gun violence after strict gun control measures.",
+          counter: {
+            claim: "However, Australia's societal context differs greatly from that of the US, making comparisons unreliable.",
+            data: [
+              {
+                text: "Cultural, economic, and legal differences make the Australian model not directly applicable.",
+                counter: {
+                  claim: "Yet, many of these factors exist in the US too, meaning the argument still holds merit.",
+                  data: [
+                    { text: "Further analysis shows some similarities between the countries.", counter: null }
+                  ],
+                  warrants: []
+                }
               }
-            }
-          ],
-          "warrants": []
+            ],
+            warrants: []
+          }
+        },
+        {
+          text: "Data from the US indicates that states with stricter gun laws experience fewer gun-related incidents.",
+          counter: null
         }
-      },
-      {
-        "text": "Data from the US indicates that states with stricter gun laws experience fewer gun-related incidents.",
-        "counter": null
-      }
-    ],
-    "warrants": [
-      {
-        "text": "Restricting access to firearms logically reduces the opportunity for violent acts.",
-        "counter": {
-          "claim": "Opponents argue that criminals do not adhere to laws, thus restrictions only affect law-abiding citizens.",
-          "data": [
-            {
-              "text": "In many cases, the illegal arms trade supplies criminals regardless of restrictions.",
-              "counter": {
-                "claim": "But the illegal arms trade thrives on other factors like corruption and organized crime, not merely the availability of guns.",
-                "data": [
-                  { "text": "Reports indicate that organized crime networks have multiple supply channels.", "counter": null }
-                ],
-                "warrants": [
-                  { "text": "Thus, focusing solely on gun control might not be sufficient to curb crime.", "counter": null }
-                ]
+      ],
+      warrants: [
+        {
+          text: "Restricting access to firearms logically reduces the opportunity for violent acts.",
+          counter: {
+            claim: "Opponents argue that criminals do not adhere to laws, thus restrictions only affect law-abiding citizens.",
+            data: [
+              {
+                text: "In many cases, the illegal arms trade supplies criminals regardless of restrictions.",
+                counter: {
+                  claim: "But the illegal arms trade thrives on other factors like corruption and organized crime, not merely the availability of guns.",
+                  data: [
+                    { text: "Reports indicate that organized crime networks have multiple supply channels.", counter: null }
+                  ],
+                  warrants: [
+                    { text: "Thus, focusing solely on gun control might not be sufficient to curb crime.", counter: null }
+                  ]
+                }
               }
-            }
-          ],
-          "warrants": []
+            ],
+            warrants: []
+          }
+        },
+        {
+          text: "Effective regulation can ensure that only responsible individuals have access to firearms.",
+          counter: null
         }
-      },
-      {
-        "text": "Effective regulation can ensure that only responsible individuals have access to firearms.",
-        "counter": null
+      ]
+    };
+
+    /***********************
+     * Local Storage Helpers
+     ***********************/
+    function loadTrees() {
+      const saved = localStorage.getItem('argumentTrees');
+      if (saved) {
+        argumentTrees = JSON.parse(saved);
+      } else {
+        argumentTrees = { "Gun Control Debate": defaultGunControlTree };
+        updateLocalStorage();
       }
-    ]
-  };
-
-  // Load trees from localStorage or initialize with default
-  function loadTrees() {
-    const saved = localStorage.getItem('argumentTrees');
-    if (saved) {
-      argumentTrees = JSON.parse(saved);
-    } else {
-      argumentTrees = { "Gun Control Debate": defaultGunControlTree };
-      updateLocalStorage();
-    }
-    currentTreeName = Object.keys(argumentTrees)[0];
-    currentTree = argumentTrees[currentTreeName];
-  }
-
-  function updateLocalStorage() {
-    localStorage.setItem('argumentTrees', JSON.stringify(argumentTrees));
-  }
-
-  // Populate the dropdown with available trees
-  function populateDropdown() {
-    const select = document.getElementById('argumentSelect');
-    select.innerHTML = "";
-    for (let name in argumentTrees) {
-      const option = document.createElement('option');
-      option.value = name;
-      option.textContent = name;
-      if (name === currentTreeName) option.selected = true;
-      select.appendChild(option);
-    }
-    select.addEventListener('change', function() {
-      currentTreeName = this.value;
+      currentTreeName = Object.keys(argumentTrees)[0];
       currentTree = argumentTrees[currentTreeName];
-      renderTree();
+    }
+    function updateLocalStorage() {
+      localStorage.setItem('argumentTrees', JSON.stringify(argumentTrees));
+    }
+    function populateDropdown() {
+      const select = document.getElementById('argumentSelect');
+      select.innerHTML = "";
+      for (let name in argumentTrees) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        if (name === currentTreeName) option.selected = true;
+        select.appendChild(option);
+      }
+      select.addEventListener('change', function() {
+        currentTreeName = this.value;
+        currentTree = argumentTrees[currentTreeName];
+        updateVisualization();
+      });
+    }
+    document.getElementById('newArgument').addEventListener('click', function(){
+      const name = prompt("Enter a name for the new argument tree:");
+      if (name) {
+        argumentTrees[name] = { claim: "New Argument Claim", data: [], warrants: [] };
+        currentTreeName = name;
+        currentTree = argumentTrees[name];
+        populateDropdown();
+        updateVisualization();
+        updateLocalStorage();
+      }
     });
-  }
 
-  // New Argument Tree button handler
-  document.getElementById('newArgument').addEventListener('click', function(){
-    const name = prompt("Enter a name for the new argument tree:");
-    if (name) {
-      argumentTrees[name] = { claim: "New Argument Claim", data: [], warrants: [] };
-      currentTreeName = name;
-      currentTree = argumentTrees[name];
-      populateDropdown();
-      renderTree();
+    /***********************
+     * Conversion: Argument to Hierarchy for D3
+     ***********************/
+    // We convert our custom argument structure into a hierarchical object.
+    // Each node gets an "originalPath" so we can later update the underlying tree.
+    function convertArgumentNode(argNode, path) {
+      // For a claim node (either root or counter branch)
+      let newNode = {
+        name: "Claim: " + argNode.claim,
+        type: "claim",
+        originalPath: path.concat(["claim"]),
+        raw: argNode
+      };
+      newNode.children = [];
+      // Data items – original path for a data node is: [ "data", index ]
+      argNode.data.forEach((d, i) => {
+        let child = {
+          name: "Data: " + d.text,
+          type: "data",
+          originalPath: path.concat(["data", i]),
+          raw: d
+        };
+        if(d.counter) {
+          child.children = [convertArgumentNode(d.counter, path.concat(["data", i, "counter"]))];
+        }
+        newNode.children.push(child);
+      });
+      // Warrant items – original path for a warrant node is: [ "warrants", index ]
+      argNode.warrants.forEach((w, i) => {
+        let child = {
+          name: "Warrant: " + w.text,
+          type: "warrant",
+          originalPath: path.concat(["warrants", i]),
+          raw: w
+        };
+        if(w.counter) {
+          child.children = [convertArgumentNode(w.counter, path.concat(["warrants", i, "counter"]))];
+        }
+        newNode.children.push(child);
+      });
+      return newNode;
+    }
+
+    /***********************
+     * Update Underlying Data
+     ***********************/
+    // Helper to traverse the currentTree structure using a path array.
+    function getObjectAtPath(obj, path) {
+      for (let i = 0; i < path.length; i++) {
+        obj = obj[path[i]];
+      }
+      return obj;
+    }
+    // Update the text for a node. For claim nodes, update the "claim" property;
+    // for data/warrant nodes, update the "text" property.
+    function updateArgumentText(path, newText) {
+      let parent = getObjectAtPath(currentTree, path.slice(0, -1));
+      let last = path[path.length - 1];
+      if (last === "claim") {
+        parent[last] = newText;
+      } else {
+        parent[last].text = newText;
+      }
       updateLocalStorage();
     }
-  });
+    // Delete a node given its originalPath.
+    // If the node is in an array (data or warrants), remove it;
+    // if it's a counter branch, set it to null.
+    function deleteArgumentNode(path) {
+      let parentPath = path.slice(0, path.length - 1);
+      let last = path[path.length - 1];
+      let parent = getObjectAtPath(currentTree, parentPath);
+      if (Array.isArray(parent)) {
+        parent.splice(last, 1);
+      } else if (last === "counter") {
+        parent[last] = null;
+      }
+      updateLocalStorage();
+    }
+    // Add a counter branch to a node (only applicable for data or warrant nodes)
+    function addCounterToNode(path) {
+      let node = getObjectAtPath(currentTree, path);
+      if (!node.counter) {
+        node.counter = { claim: "New Counter Claim", data: [], warrants: [] };
+      }
+      updateLocalStorage();
+    }
 
-  // Render the entire tree inside #treeContainer
-  function renderTree() {
-    const container = document.getElementById('treeContainer');
-    container.innerHTML = "";
-    const treeDiv = document.createElement('div');
-    renderNode(currentTree, treeDiv, []);
-    container.appendChild(treeDiv);
-  }
+    /***********************
+     * D3 Visualization Setup
+     ***********************/
+    const svg = d3.select("svg");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
 
-  // Recursively render a node. The path array keeps track of location in the JSON.
-  function renderNode(node, container, path) {
-    const nodeDiv = document.createElement('div');
-    nodeDiv.className = "node";
-    
-    // Claim field
-    const claimLabel = document.createElement('label');
-    claimLabel.textContent = "Claim: ";
-    nodeDiv.appendChild(claimLabel);
-    const claimInput = document.createElement('input');
-    claimInput.type = "text";
-    claimInput.value = node.claim;
-    claimInput.dataset.path = JSON.stringify(path.concat(["claim"]));
-    claimInput.addEventListener('change', onFieldChange);
-    nodeDiv.appendChild(claimInput);
+    // Create a container group for pan & zoom.
+    const gContainer = svg.append("g");
 
-    // Data Section
-    const dataSection = document.createElement('div');
-    dataSection.className = "section";
-    const dataHeader = document.createElement('div');
-    dataHeader.className = "section-header";
-    dataHeader.textContent = "Data:";
-    dataSection.appendChild(dataHeader);
-    node.data.forEach((item, index) => {
-      const itemDiv = document.createElement('div');
-      itemDiv.className = "item";
-      const dataInput = document.createElement('input');
-      dataInput.type = "text";
-      dataInput.value = item.text;
-      dataInput.dataset.path = JSON.stringify(path.concat(["data", index, "text"]));
-      dataInput.addEventListener('change', onFieldChange);
-      itemDiv.appendChild(dataInput);
-      
-      // Delete data button
-      const delDataBtn = document.createElement('button');
-      delDataBtn.textContent = "Delete Data";
-      delDataBtn.dataset.path = JSON.stringify(path.concat(["data", index]));
-      delDataBtn.addEventListener('click', onDeleteItem);
-      itemDiv.appendChild(delDataBtn);
-      
-      // Counter branch
-      if (item.counter) {
-        const toggleBtn = document.createElement('button');
-        toggleBtn.textContent = "Hide Counter";
-        toggleBtn.addEventListener('click', function(){
-          const counterDiv = itemDiv.querySelector('.counter');
-          if (counterDiv.style.display === "none") {
-            counterDiv.style.display = "block";
-            toggleBtn.textContent = "Hide Counter";
-          } else {
-            counterDiv.style.display = "none";
-            toggleBtn.textContent = "Show Counter";
+    // Setup zoom behavior.
+    svg.call(d3.zoom()
+      .scaleExtent([0.1, 3])
+      .on("zoom", (event) => {
+        gContainer.attr("transform", event.transform);
+      }));
+
+    // Tree layout configuration.
+    const treeLayout = d3.tree().size([width - 100, height - 100]);
+
+    /***********************
+     * Update Visualization
+     ***********************/
+    function updateVisualization() {
+      // Convert our current tree to hierarchical data.
+      const rootData = convertArgumentNode(currentTree, []);
+      const root = d3.hierarchy(rootData);
+      treeLayout(root);
+
+      // Clear any existing nodes and links.
+      gContainer.selectAll(".link").remove();
+      gContainer.selectAll(".node").remove();
+
+      // Draw links.
+      const link = gContainer.selectAll(".link")
+        .data(root.links())
+        .enter()
+        .append("path")
+        .attr("class", "link")
+        .attr("d", d3.linkVertical()
+                      .x(d => d.x + 50)
+                      .y(d => d.y + 20));
+
+      // Draw nodes.
+      const node = gContainer.selectAll(".node")
+        .data(root.descendants())
+        .enter()
+        .append("g")
+        .attr("class", "node")
+        .attr("transform", d => "translate(" + d.x + "," + d.y + ")")
+        .call(d3.drag()
+          .on("drag", (event, d) => {
+            d.x += event.dx;
+            d.y += event.dy;
+            d3.select(event.sourceEvent.target.parentNode)
+              .attr("transform", "translate(" + d.x + "," + d.y + ")");
+            // Update links connected to this node.
+            gContainer.selectAll(".link")
+              .attr("d", d3.linkVertical()
+                          .x(d => d.x + 50)
+                          .y(d => d.y + 20));
+          }));
+
+      // Node rectangle
+      node.append("rect")
+        .attr("width", 100)
+        .attr("height", 40)
+        .attr("x", 0)
+        .attr("y", 0)
+        .on("dblclick", (event, d) => {
+          // On double-click, prompt to edit the node's text.
+          let newText = prompt("Edit text:", (d.data.name.split(": ")[1]));
+          if (newText !== null) {
+            updateArgumentText(d.data.originalPath, newText);
+            updateVisualization();
           }
         });
-        itemDiv.appendChild(toggleBtn);
-        const counterDiv = document.createElement('div');
-        counterDiv.className = "counter";
-        renderNode(item.counter, counterDiv, path.concat(["data", index, "counter"]));
-        itemDiv.appendChild(counterDiv);
-      } else {
-        const addCounterBtn = document.createElement('button');
-        addCounterBtn.textContent = "Add Counter";
-        addCounterBtn.dataset.path = JSON.stringify(path.concat(["data", index]));
-        addCounterBtn.addEventListener('click', onAddCounter);
-        itemDiv.appendChild(addCounterBtn);
-      }
-      
-      dataSection.appendChild(itemDiv);
+
+      // Node label
+      node.append("text")
+        .attr("x", 50)
+        .attr("y", 25)
+        .attr("text-anchor", "middle")
+        .attr("pointer-events", "none")
+        .text(d => d.data.name);
+
+      // Add "Add Counter" button for data or warrant nodes that do not yet have a counter.
+      node.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
+          .append("circle")
+          .attr("class", "button-circle")
+          .attr("cx", 90)
+          .attr("cy", 35)
+          .attr("r", 8)
+          .on("click", (event, d) => {
+            // Prevent zoom from triggering.
+            event.stopPropagation();
+            addCounterToNode(d.data.originalPath);
+            updateVisualization();
+          });
+      node.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
+          .append("text")
+          .attr("x", 90)
+          .attr("y", 39)
+          .attr("text-anchor", "middle")
+          .attr("font-size", "10px")
+          .attr("pointer-events", "none")
+          .text("+");
+
+      // Add "delete" button for nodes that are not the root.
+      node.filter(d => d.depth > 0)
+          .append("circle")
+          .attr("class", "delete-circle")
+          .attr("cx", 10)
+          .attr("cy", 10)
+          .attr("r", 8)
+          .on("click", (event, d) => {
+            event.stopPropagation();
+            if (confirm("Delete this node?")) {
+              deleteArgumentNode(d.data.originalPath);
+              updateVisualization();
+            }
+          });
+      node.filter(d => d.depth > 0)
+          .append("text")
+          .attr("x", 10)
+          .attr("y", 14)
+          .attr("text-anchor", "middle")
+          .attr("font-size", "10px")
+          .attr("pointer-events", "none")
+          .text("×");
+    }
+
+    /***********************
+     * Initialize Application
+     ***********************/
+    document.addEventListener('DOMContentLoaded', function() {
+      loadTrees();
+      populateDropdown();
+      updateVisualization();
     });
-    // Button to add new data
-    const addDataBtn = document.createElement('button');
-    addDataBtn.textContent = "Add Data";
-    addDataBtn.dataset.path = JSON.stringify(path.concat(["data"]));
-    addDataBtn.addEventListener('click', onAddItem);
-    dataSection.appendChild(addDataBtn);
-    nodeDiv.appendChild(dataSection);
-
-    // Warrants Section (same idea as Data)
-    const warrantSection = document.createElement('div');
-    warrantSection.className = "section";
-    const warrantHeader = document.createElement('div');
-    warrantHeader.className = "section-header";
-    warrantHeader.textContent = "Warrants:";
-    warrantSection.appendChild(warrantHeader);
-    node.warrants.forEach((item, index) => {
-      const itemDiv = document.createElement('div');
-      itemDiv.className = "item";
-      const warrantInput = document.createElement('input');
-      warrantInput.type = "text";
-      warrantInput.value = item.text;
-      warrantInput.dataset.path = JSON.stringify(path.concat(["warrants", index, "text"]));
-      warrantInput.addEventListener('change', onFieldChange);
-      itemDiv.appendChild(warrantInput);
-      
-      // Delete warrant button
-      const delWarrantBtn = document.createElement('button');
-      delWarrantBtn.textContent = "Delete Warrant";
-      delWarrantBtn.dataset.path = JSON.stringify(path.concat(["warrants", index]));
-      delWarrantBtn.addEventListener('click', onDeleteItem);
-      itemDiv.appendChild(delWarrantBtn);
-      
-      // Counter branch for warrant
-      if (item.counter) {
-        const toggleBtn = document.createElement('button');
-        toggleBtn.textContent = "Hide Counter";
-        toggleBtn.addEventListener('click', function(){
-          const counterDiv = itemDiv.querySelector('.counter');
-          if (counterDiv.style.display === "none") {
-            counterDiv.style.display = "block";
-            toggleBtn.textContent = "Hide Counter";
-          } else {
-            counterDiv.style.display = "none";
-            toggleBtn.textContent = "Show Counter";
-          }
-        });
-        itemDiv.appendChild(toggleBtn);
-        const counterDiv = document.createElement('div');
-        counterDiv.className = "counter";
-        renderNode(item.counter, counterDiv, path.concat(["warrants", index, "counter"]));
-        itemDiv.appendChild(counterDiv);
-      } else {
-        const addCounterBtn = document.createElement('button');
-        addCounterBtn.textContent = "Add Counter";
-        addCounterBtn.dataset.path = JSON.stringify(path.concat(["warrants", index]));
-        addCounterBtn.addEventListener('click', onAddCounter);
-        itemDiv.appendChild(addCounterBtn);
-      }
-      
-      warrantSection.appendChild(itemDiv);
-    });
-    // Button to add new warrant
-    const addWarrantBtn = document.createElement('button');
-    addWarrantBtn.textContent = "Add Warrant";
-    addWarrantBtn.dataset.path = JSON.stringify(path.concat(["warrants"]));
-    addWarrantBtn.addEventListener('click', onAddItem);
-    warrantSection.appendChild(addWarrantBtn);
-    nodeDiv.appendChild(warrantSection);
-    
-    container.appendChild(nodeDiv);
-  }
-
-  // Handler for field changes (claim, data text, or warrant text)
-  function onFieldChange(event) {
-    const path = JSON.parse(event.target.dataset.path);
-    updateField(path, event.target.value);
-    updateLocalStorage();
-  }
-  function updateField(path, value) {
-    let obj = currentTree;
-    for (let i = 0; i < path.length - 1; i++) {
-      obj = obj[path[i]];
-    }
-    obj[path[path.length - 1]] = value;
-  }
-
-  // Generic delete handler for data/warrant items
-  function onDeleteItem(event) {
-    const path = JSON.parse(event.target.dataset.path);
-    // Remove the item from its parent array.
-    const parentPath = path.slice(0, path.length - 1);
-    const index = path[path.length - 1];
-    const parent = getObjectAtPath(currentTree, parentPath);
-    parent.splice(index, 1);
-    updateLocalStorage();
-    renderTree();
-  }
-
-  // Generic add handler for new data or warrant items
-  function onAddItem(event) {
-    const path = JSON.parse(event.target.dataset.path);
-    const arr = getObjectAtPath(currentTree, path);
-    // Determine if we're in a data or warrant array
-    if (path[path.length - 1] === "data") {
-      arr.push({ text: "New Data", counter: null });
-    } else if (path[path.length - 1] === "warrants") {
-      arr.push({ text: "New Warrant", counter: null });
-    }
-    updateLocalStorage();
-    renderTree();
-  }
-
-  // Handler to add a counter branch to a data or warrant item if none exists
-  function onAddCounter(event) {
-    const path = JSON.parse(event.target.dataset.path);
-    const obj = getObjectAtPath(currentTree, path);
-    if (!obj.counter) {
-      obj.counter = { claim: "New Counter Claim", data: [], warrants: [] };
-    }
-    updateLocalStorage();
-    renderTree();
-  }
-
-  // Helper: Traverse currentTree following the given path array
-  function getObjectAtPath(obj, path) {
-    for (let i = 0; i < path.length; i++) {
-      obj = obj[path[i]];
-    }
-    return obj;
-  }
-
-  // Initialize the app
-  document.addEventListener('DOMContentLoaded', function() {
-    loadTrees();
-    populateDropdown();
-    renderTree();
-  });
   </script>
 </body>
 </html>
