@@ -13,7 +13,7 @@
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.95);
       padding: 5px;
       border: 1px solid #ccc;
       border-radius: 4px;
@@ -42,11 +42,47 @@
       fill: lightblue;
       cursor: pointer;
     }
+    .source-circle {
+      stroke: darkorange;
+      stroke-width: 1px;
+      fill: lightyellow;
+      cursor: pointer;
+    }
     /* Link styling */
     path.link {
       fill: none;
       stroke: #ccc;
       stroke-width: 1.5px;
+    }
+    /* Overlay for sources */
+    #sourceOverlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      border: 2px solid #333;
+      padding: 20px;
+      z-index: 20;
+      max-width: 400px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    #sourceOverlay h3 {
+      margin-top: 0;
+    }
+    #sourceOverlay a {
+      color: blue;
+      text-decoration: underline;
+    }
+    #closeOverlay {
+      position: absolute;
+      top: 5px;
+      right: 10px;
+      cursor: pointer;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -58,18 +94,24 @@
     <button id="loadExternal">Load External Argument</button>
   </div>
   <svg id="canvas" width="100%" height="100%"></svg>
+  <!-- Overlay for displaying sources -->
+  <div id="sourceOverlay">
+    <div id="closeOverlay">X</div>
+    <h3>Sources</h3>
+    <ul id="sourceList"></ul>
+  </div>
 
   <!-- D3.js library -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script>
     /***********************
-     * Global Variables & Expanded Default Tree
+     * Global Variables & Default Tree Template
      ***********************/
     let argumentTrees = {};
     let currentTreeName = "";
     let currentTree = {};
 
-    // Expanded default tree (this will only be used if you create a new tree)
+    // Default tree used when creating a new tree.
     const defaultTree = {
       claim: "New Argument Claim",
       data: [],
@@ -79,7 +121,6 @@
     /***********************
      * Color Palette & Persistent Color Assignment
      ***********************/
-    // A preset palette of pastel colors chosen for contrast.
     const palette = [
       "hsl(0, 70%, 85%)",
       "hsl(180, 70%, 85%)",
@@ -105,7 +146,7 @@
       if (saved) {
         argumentTrees = JSON.parse(saved);
       } else {
-        // Start with an empty set (external files will populate these)
+        // Start empty (external files will be loaded)
         argumentTrees = {};
         updateLocalStorage();
       }
@@ -153,7 +194,7 @@
       }
     };
 
-    // New: Load External Argument – expects an external file index (arguments/index.json)
+    // Load External Argument – expects an external file index (e.g. arguments/index.json)
     document.getElementById('loadExternal').onclick = function() {
       d3.json('arguments/index.json')
         .then(function(indexData) {
@@ -190,8 +231,7 @@
     /***********************
      * Hierarchy Conversion with Persistent Colors
      ***********************/
-    // Converts our argument node into a hierarchical object for D3.
-    // For claim nodes, if no color is already assigned, one is assigned and stored.
+    // Converts the external argument JSON into a hierarchical object for D3.
     function convertArgumentNode(argNode, path) {
       if (!argNode.color) {
         argNode.color = getNextColor();
@@ -274,6 +314,28 @@
     }
 
     /***********************
+     * Source Overlay Functions
+     ***********************/
+    function showSources(sources) {
+      const overlay = document.getElementById("sourceOverlay");
+      const list = document.getElementById("sourceList");
+      list.innerHTML = "";
+      sources.forEach(src => {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = src.url;
+        a.target = "_blank";
+        a.textContent = src.text;
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+      overlay.style.display = "block";
+    }
+    document.getElementById("closeOverlay").onclick = function() {
+      document.getElementById("sourceOverlay").style.display = "none";
+    };
+
+    /***********************
      * D3 Tree Layout Visualization
      ***********************/
     const svg = d3.select("#canvas");
@@ -281,7 +343,6 @@
         height = window.innerHeight;
     svg.attr("width", width).attr("height", height);
 
-    // Set up pan/zoom.
     svg.call(d3.zoom().scaleExtent([0.1, 3]).on("zoom", event => {
       gContainer.attr("transform", event.transform);
     }));
@@ -295,11 +356,15 @@
             word,
             line = [],
             lineNumber = 0,
-            lineHeight = 1.1, // ems
+            lineHeight = 1.1,
             x = textEl.attr("x"),
             y = textEl.attr("y"),
             dy = 0,
-            tspan = textEl.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+            tspan = textEl.text(null)
+                     .append("tspan")
+                     .attr("x", x)
+                     .attr("y", y)
+                     .attr("dy", dy + "em");
         while (word = words.pop()) {
           line.push(word);
           tspan.text(line.join(" "));
@@ -307,8 +372,11 @@
             line.pop();
             tspan.text(line.join(" "));
             line = [word];
-            tspan = textEl.append("tspan").attr("x", x).attr("y", y)
-                    .attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+            tspan = textEl.append("tspan")
+                     .attr("x", x)
+                     .attr("y", y)
+                     .attr("dy", ++lineNumber * lineHeight + dy + "em")
+                     .text(word);
           }
         }
       });
@@ -318,22 +386,20 @@
       gContainer.selectAll("*").remove();
       if (!currentTree) return;
       
-      // Convert our custom argument structure to a hierarchical object.
+      // Convert the custom argument JSON to a hierarchical object.
       const rootData = convertArgumentNode(currentTree, []);
       const root = d3.hierarchy(rootData);
       
-      // Use d3.tree layout for a clear, hierarchical arrangement.
+      // Use d3.tree layout for a clear hierarchical arrangement.
       const treeLayout = d3.tree()
         .size([width - 160, height - 100])
         .separation((a, b) => a.parent === b.parent ? 1 : 2);
       treeLayout(root);
       
-      // For each node, measure the label to determine shape size.
+      // For each node, measure the label to compute shape dimensions.
       root.descendants().forEach(d => {
         let label = d.data.name.split(": ")[1];
-        const fontSize = 12;
-        const maxWidth = 200;
-        // Temporary text measurement.
+        const fontSize = 12, maxWidth = 200;
         let tempText = svg.append("text")
                           .attr("font-size", fontSize)
                           .attr("font-family", "sans-serif")
@@ -347,7 +413,7 @@
         d.nodeHeight = nodeHeight;
       });
       
-      // Draw links using a vertical link generator.
+      // Draw links as vertical curves.
       const linkGenerator = d3.linkVertical()
                               .x(d => d.x + d.nodeWidth/2)
                               .y(d => d.y + d.nodeHeight/2);
@@ -361,7 +427,6 @@
           target: { x: d.target.x, y: d.target.y, nodeWidth: d.target.nodeWidth, nodeHeight: d.target.nodeHeight }
         }));
       
-      // Draw nodes.
       const nodeGroups = gContainer.selectAll("g.node")
         .data(root.descendants())
         .enter()
@@ -400,10 +465,10 @@
             updateVisualization();
           }
         });
-      // Warrant nodes as triangles.
+      // Warrant nodes as triangles – increased in size.
       nodeGroups.filter(d => d.data.type === "warrant")
         .append("polygon")
-        .attr("points", d => `0,${d.nodeHeight} ${d.nodeWidth/2},0 ${d.nodeWidth},${d.nodeHeight}`)
+        .attr("points", d => `0,${d.nodeHeight+10} ${d.nodeWidth/2},-10 ${d.nodeWidth},${d.nodeHeight+10}`)
         .attr("fill", d => d.data.bgColor)
         .on("dblclick", (event, d) => {
           let currentText = d.data.name.split(": ")[1];
@@ -417,7 +482,7 @@
       // Append centered text.
       nodeGroups.append("text")
         .attr("x", d => d.nodeWidth/2)
-        .attr("y", d => d.nodeHeight/2)
+        .attr("y", d => d.data.type === "warrant" ? (d.nodeHeight+10)/2 : d.nodeHeight/2)
         .attr("dy", "0.35em")
         .attr("text-anchor", "middle")
         .attr("font-size", 12)
@@ -517,13 +582,35 @@
                 updateVisualization();
               }
             });
+          // If sources exist, add a "S" button.
+          if(d.data.raw.sources && d.data.raw.sources.length > 0) {
+            group.append("circle")
+              .attr("class", "source-circle")
+              .attr("cx", d.nodeWidth + 50)
+              .attr("cy", d.nodeHeight/2 - 10)
+              .attr("r", 8)
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                showSources(d.data.raw.sources);
+              });
+            group.append("text")
+              .attr("x", d.nodeWidth + 50)
+              .attr("y", d.nodeHeight/2 - 6)
+              .attr("text-anchor", "middle")
+              .attr("font-size", "10px")
+              .text("S")
+              .on("click", (event, d) => {
+                event.stopPropagation();
+                showSources(d.data.raw.sources);
+              });
+          }
         });
       
-      // For claim nodes with children, add a collapse/expand toggle.
+      // For claim nodes with children, add a collapse/expand toggle (shifted further left).
       nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length>0 || d.data.raw.warrants.length>0))
         .append("circle")
         .attr("class", "collapse-circle")
-        .attr("cx", -10)
+        .attr("cx", -20)
         .attr("cy", 10)
         .attr("r", 8)
         .on("click", (event, d) => {
@@ -533,7 +620,7 @@
         });
       nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length>0 || d.data.raw.warrants.length>0))
         .append("text")
-        .attr("x", -10)
+        .attr("x", -20)
         .attr("y", 14)
         .attr("text-anchor", "middle")
         .attr("font-size", "10px")
@@ -544,11 +631,11 @@
           updateVisualization();
         });
       
-      // Add a delete button for non-root nodes.
+      // Add a delete button for non-root nodes (shifted further right).
       nodeGroups.filter(d => d.depth > 0)
         .append("circle")
         .attr("class", "delete-circle")
-        .attr("cx", 10)
+        .attr("cx", 20)
         .attr("cy", 10)
         .attr("r", 8)
         .on("click", (event, d) => {
@@ -560,7 +647,7 @@
         });
       nodeGroups.filter(d => d.depth > 0)
         .append("text")
-        .attr("x", 10)
+        .attr("x", 20)
         .attr("y", 14)
         .attr("text-anchor", "middle")
         .attr("font-size", "10px")
