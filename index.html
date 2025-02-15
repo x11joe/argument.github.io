@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Argument Tree Visualizer – Enhanced</title>
+  <title>Enhanced Argument Tree Visualizer</title>
   <style>
     body {
-      font-family: sans-serif;
       margin: 0;
       overflow: hidden;
+      font-family: sans-serif;
     }
     #controls {
       position: absolute;
@@ -23,16 +23,12 @@
       margin-right: 5px;
       font-size: 14px;
     }
+    /* Node styling */
     .node rect {
-      fill: #fff;
       stroke: steelblue;
       stroke-width: 1.5px;
       rx: 5;
       ry: 5;
-    }
-    .node text {
-      pointer-events: none;
-      font-size: 12px;
     }
     .button-circle {
       fill: lightgreen;
@@ -52,8 +48,7 @@
       stroke-width: 1px;
       cursor: pointer;
     }
-    .link {
-      fill: none;
+    line.link {
       stroke: #ccc;
       stroke-width: 1.5px;
     }
@@ -64,7 +59,7 @@
     <select id="argumentSelect"></select>
     <button id="newArgument">New Argument Tree</button>
   </div>
-  <svg width="1200" height="800"></svg>
+  <svg id="canvas" width="100%" height="100%"></svg>
 
   <!-- D3.js library -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -76,8 +71,7 @@
     let currentTreeName = "";
     let currentTree = {};
 
-    // Default Gun Control Debate tree – note the structure:
-    // Each claim node has a "claim" property plus arrays "data" and "warrants".
+    // Default Gun Control Debate tree
     const defaultGunControlTree = {
       claim: "Gun control is essential for reducing violent crime.",
       data: [
@@ -161,13 +155,13 @@
         if (name === currentTreeName) option.selected = true;
         select.appendChild(option);
       }
-      select.addEventListener('change', function() {
+      select.onchange = function() {
         currentTreeName = this.value;
         currentTree = argumentTrees[currentTreeName];
         updateVisualization();
-      });
+      };
     }
-    document.getElementById('newArgument').addEventListener('click', function(){
+    document.getElementById('newArgument').onclick = function() {
       const name = prompt("Enter a name for the new argument tree:");
       if (name) {
         argumentTrees[name] = { claim: "New Argument Claim", data: [], warrants: [] };
@@ -177,19 +171,26 @@
         updateVisualization();
         updateLocalStorage();
       }
-    });
+    };
 
     /***********************
-     * Conversion: Argument to Hierarchy for D3
+     * Color & Hierarchy Conversion
      ***********************/
-    // Converts our custom argument node into a hierarchical object for D3.
-    // It also respects a "collapsed" property (if true, children won’t be added).
+    // Generates a random pastel (light) color.
+    function getRandomPastelColor() {
+      const hue = Math.floor(Math.random() * 360);
+      return `hsl(${hue}, 70%, 85%)`;
+    }
+    // Converts our argument node into a hierarchical structure for D3.
+    // Each claim node gets its own random pastel color; data/warrant nodes inherit their parent’s color.
     function convertArgumentNode(argNode, path) {
-      let newNode = {
+      const currentColor = getRandomPastelColor();
+      const newNode = {
         name: "Claim: " + argNode.claim,
         type: "claim",
         originalPath: path.concat(["claim"]),
-        raw: argNode
+        raw: argNode,
+        bgColor: currentColor
       };
       newNode.children = [];
       if (!argNode.collapsed) {
@@ -198,7 +199,8 @@
             name: "Data: " + d.text,
             type: "data",
             originalPath: path.concat(["data", i]),
-            raw: d
+            raw: d,
+            bgColor: currentColor // Inherit from claim
           };
           if (d.counter) {
             child.children = [convertArgumentNode(d.counter, path.concat(["data", i, "counter"]))];
@@ -210,7 +212,8 @@
             name: "Warrant: " + w.text,
             type: "warrant",
             originalPath: path.concat(["warrants", i]),
-            raw: w
+            raw: w,
+            bgColor: currentColor // Inherit from claim
           };
           if (w.counter) {
             child.children = [convertArgumentNode(w.counter, path.concat(["warrants", i, "counter"]))];
@@ -222,16 +225,14 @@
     }
 
     /***********************
-     * Update Underlying Data
+     * Data Update Functions
      ***********************/
-    // Helper to traverse the currentTree structure using a path array.
     function getObjectAtPath(obj, path) {
       for (let i = 0; i < path.length; i++) {
         obj = obj[path[i]];
       }
       return obj;
     }
-    // Update the text for a node.
     function updateArgumentText(path, newText) {
       let parent = getObjectAtPath(currentTree, path.slice(0, -1));
       let last = path[path.length - 1];
@@ -242,7 +243,6 @@
       }
       updateLocalStorage();
     }
-    // Delete a node given its originalPath.
     function deleteArgumentNode(path) {
       let parentPath = path.slice(0, path.length - 1);
       let last = path[path.length - 1];
@@ -254,7 +254,6 @@
       }
       updateLocalStorage();
     }
-    // Add a counter branch to a node (only applicable for data or warrant nodes)
     function addCounterToNode(path) {
       let node = getObjectAtPath(currentTree, path);
       if (!node.counter) {
@@ -264,232 +263,312 @@
     }
 
     /***********************
-     * D3 Visualization Setup
+     * D3 Visualization with Force Simulation
      ***********************/
-    const svg = d3.select("svg");
-    const width = +svg.attr("width");
-    const height = +svg.attr("height");
+    const svg = d3.select("#canvas");
+    let width = window.innerWidth,
+        height = window.innerHeight;
+    svg.attr("width", width).attr("height", height);
 
-    // Create a container group for pan & zoom.
+    // Set up zoom behavior on the SVG.
+    svg.call(d3.zoom().scaleExtent([0.1, 3]).on("zoom", event => {
+      gContainer.attr("transform", event.transform);
+    }));
     const gContainer = svg.append("g");
 
-    // Setup zoom behavior.
-    svg.call(d3.zoom()
-      .scaleExtent([0.1, 3])
-      .on("zoom", (event) => {
-        gContainer.attr("transform", event.transform);
-      }));
+    // Helper for wrapping text within a given width.
+    function wrap(text, width) {
+      text.each(function() {
+        var textEl = d3.select(this),
+            words = textEl.text().split(/\s+/).reverse(),
+            word,
+            line = [],
+            lineNumber = 0,
+            lineHeight = 1.1, // ems
+            x = textEl.attr("x"),
+            y = textEl.attr("y"),
+            dy = 0,
+            tspan = textEl.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+        while (word = words.pop()) {
+          line.push(word);
+          tspan.text(line.join(" "));
+          if (tspan.node().getComputedTextLength() > width) {
+            line.pop();
+            tspan.text(line.join(" "));
+            line = [word];
+            tspan = textEl.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+          }
+        }
+      });
+    }
 
-    // Tree layout configuration.
-    const treeLayout = d3.tree()
-      .size([width - 100, height - 100])
-      .separation((a, b) => a.parent === b.parent ? 1 : 1.5);
-
-    /***********************
-     * Update Visualization
-     ***********************/
+    // Main update function using a force simulation to auto-arrange nodes without overlap.
     function updateVisualization() {
-      // Convert our current tree to hierarchical data.
+      // Clear previous renderings.
+      gContainer.selectAll("*").remove();
+
+      // Convert the current tree into a hierarchical structure.
       const rootData = convertArgumentNode(currentTree, []);
       const root = d3.hierarchy(rootData);
-      treeLayout(root);
+      const nodes = root.descendants();
+      const links = root.links();
 
-      // Clear any existing nodes and links.
-      gContainer.selectAll(".link").remove();
-      gContainer.selectAll(".node").remove();
+      // For each node, measure its label (after the colon) and compute dimensions.
+      nodes.forEach(d => {
+        let label = d.data.name.split(": ")[1];
+        const fontSize = 12;
+        const maxWidth = 200; // Maximum width before wrapping.
+        // Create a temporary text element to measure size.
+        let tempText = svg.append("text")
+                          .attr("font-size", fontSize)
+                          .attr("font-family", "sans-serif")
+                          .text(label);
+        let bbox = tempText.node().getBBox();
+        tempText.remove();
+        let lines = Math.ceil(bbox.width / maxWidth);
+        let nodeWidth = Math.min(bbox.width, maxWidth) + 20;
+        let nodeHeight = (lines * 16) + 20;
+        d.nodeWidth = nodeWidth;
+        d.nodeHeight = nodeHeight;
+        // For collision detection, use half the diagonal plus some margin.
+        d.radius = Math.sqrt((nodeWidth / 2) ** 2 + (nodeHeight / 2) ** 2);
+      });
+
+      // Create a force simulation.
+      const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).distance(150).strength(1))
+        .force("collide", d3.forceCollide().radius(d => d.radius + 10).iterations(2))
+        .force("charge", d3.forceManyBody().strength(-200))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .on("tick", ticked);
 
       // Draw links.
-      gContainer.selectAll(".link")
-        .data(root.links())
+      const linkElements = gContainer.selectAll("line.link")
+        .data(links)
         .enter()
-        .append("path")
-        .attr("class", "link")
-        .attr("d", d3.linkVertical()
-                      .x(d => d.x + 50)
-                      .y(d => d.y + 20));
+        .append("line")
+        .attr("class", "link");
 
       // Draw nodes.
-      const node = gContainer.selectAll(".node")
-        .data(root.descendants())
+      const nodeGroups = gContainer.selectAll("g.node")
+        .data(nodes)
         .enter()
         .append("g")
         .attr("class", "node")
-        .attr("transform", d => "translate(" + d.x + "," + d.y + ")")
         .call(d3.drag()
-          .on("drag", (event, d) => {
-            d.x += event.dx;
-            d.y += event.dy;
-            d3.select(event.sourceEvent.target.parentNode)
-              .attr("transform", "translate(" + d.x + "," + d.y + ")");
-            // Update links connected to this node.
-            gContainer.selectAll(".link")
-              .attr("d", d3.linkVertical()
-                          .x(d => d.x + 50)
-                          .y(d => d.y + 20));
-          }));
+          .on("start", dragStarted)
+          .on("drag", dragged)
+          .on("end", dragEnded)
+        );
 
-      // Node rectangle (initially with a minimum width)
-      node.append("rect")
-        .attr("width", 100)
-        .attr("height", 40)
-        .attr("x", 0)
-        .attr("y", 0)
+      // Append a rectangle to each node.
+      nodeGroups.append("rect")
+        .attr("width", d => d.nodeWidth)
+        .attr("height", d => d.nodeHeight)
+        .attr("fill", d => d.data.bgColor ? d.data.bgColor : "#fff")
         .on("dblclick", (event, d) => {
-          // On double-click, prompt to edit the node's text.
-          let currentText = d.data.name.split(": ")[1];
-          let newText = prompt("Edit text:", currentText);
+          const currentText = d.data.name.split(": ")[1];
+          const newText = prompt("Edit text:", currentText);
           if (newText !== null) {
             updateArgumentText(d.data.originalPath, newText);
             updateVisualization();
           }
         });
 
-      // Node label – centered in the rectangle.
-      node.append("text")
-        .attr("x", 50)
-        .attr("y", 25)
-        .attr("text-anchor", "middle")
-        .attr("pointer-events", "none")
-        .text(d => d.data.name);
-
-      // Adjust rectangle width to fit text.
-      node.each(function(d) {
-        let textEl = d3.select(this).select("text");
-        let textWidth = textEl.node().getComputedTextLength();
-        let newWidth = textWidth + 20;
-        d3.select(this).select("rect").attr("width", newWidth);
-        textEl.attr("x", newWidth/2);
-        // Store new width for later positioning of buttons.
-        d.data.rectWidth = newWidth;
-      });
+      // Append text (with wrapping) inside each node.
+      const textElements = nodeGroups.append("text")
+        .attr("x", 10)
+        .attr("y", 15)
+        .attr("font-size", 12)
+        .attr("font-family", "sans-serif")
+        .text(d => d.data.name.split(": ")[1])
+        .each(function(d) {
+          wrap(d3.select(this), d.nodeWidth - 20);
+        });
 
       /***********************
-       * Node-specific Buttons
+       * Node-Specific Interactive Buttons
        ***********************/
-
-      // For data/warrant nodes that do not have a counter branch, add an "Add Counter" button.
-      node.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
-          .append("circle")
-          .attr("class", "button-circle")
-          .attr("cx", function(d) { return d.data.rectWidth - 10; })
-          .attr("cy", 35)
-          .attr("r", 8)
-          .on("click", (event, d) => {
-            event.stopPropagation();
-            addCounterToNode(d.data.originalPath);
-            updateVisualization();
-          });
-      node.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
-          .append("text")
-          .attr("x", function(d) { return d.data.rectWidth - 10; })
-          .attr("y", 39)
-          .attr("text-anchor", "middle")
-          .attr("font-size", "10px")
-          .attr("pointer-events", "none")
-          .text("+");
+      // For data/warrant nodes without a counter, add an "Add Counter" button.
+      nodeGroups.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
+        .append("circle")
+        .attr("class", "button-circle")
+        .attr("cx", d => d.nodeWidth - 10)
+        .attr("cy", d => d.nodeHeight - 10)
+        .attr("r", 8)
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          addCounterToNode(d.data.originalPath);
+          updateVisualization();
+        });
+      nodeGroups.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
+        .append("text")
+        .attr("x", d => d.nodeWidth - 10)
+        .attr("y", d => d.nodeHeight - 6)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "10px")
+        .text("+")
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          addCounterToNode(d.data.originalPath);
+          updateVisualization();
+        });
 
       // For claim nodes, add "Add Data" and "Add Warrant" buttons.
-      node.filter(d => d.data.type === "claim")
-          .each(function(d) {
-            // Only add these buttons to claim nodes (even if collapsed) so you can continue building.
-            let group = d3.select(this);
-            let rectWidth = d.data.rectWidth;
-            // Add Data button (circle with "D")
-            group.append("circle")
-              .attr("class", "button-circle")
-              .attr("cx", rectWidth + 10)
-              .attr("cy", 20)
-              .attr("r", 8)
-              .on("click", (event, d) => {
-                event.stopPropagation();
-                let newText = prompt("New Data text:");
-                if(newText) {
-                  d.data.raw.data.push({ text: newText, counter: null });
-                  updateLocalStorage();
-                  updateVisualization();
-                }
-              });
-            group.append("text")
-              .attr("x", rectWidth + 10)
-              .attr("y", 24)
-              .attr("text-anchor", "middle")
-              .attr("font-size", "10px")
-              .attr("pointer-events", "none")
-              .text("D");
-            // Add Warrant button (circle with "W")
-            group.append("circle")
-              .attr("class", "button-circle")
-              .attr("cx", rectWidth + 30)
-              .attr("cy", 20)
-              .attr("r", 8)
-              .on("click", (event, d) => {
-                event.stopPropagation();
-                let newText = prompt("New Warrant text:");
-                if(newText) {
-                  d.data.raw.warrants.push({ text: newText, counter: null });
-                  updateLocalStorage();
-                  updateVisualization();
-                }
-              });
-            group.append("text")
-              .attr("x", rectWidth + 30)
-              .attr("y", 24)
-              .attr("text-anchor", "middle")
-              .attr("font-size", "10px")
-              .attr("pointer-events", "none")
-              .text("W");
-          });
+      nodeGroups.filter(d => d.data.type === "claim")
+        .each(function(d) {
+          const group = d3.select(this);
+          // "Add Data" button.
+          group.append("circle")
+            .attr("class", "button-circle")
+            .attr("cx", d.nodeWidth + 10)
+            .attr("cy", d.nodeHeight / 2 - 10)
+            .attr("r", 8)
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              const newText = prompt("New Data text:");
+              if (newText) {
+                d.data.raw.data.push({ text: newText, counter: null });
+                updateLocalStorage();
+                updateVisualization();
+              }
+            });
+          group.append("text")
+            .attr("x", d.nodeWidth + 10)
+            .attr("y", d.nodeHeight / 2 - 6)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .text("D")
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              const newText = prompt("New Data text:");
+              if (newText) {
+                d.data.raw.data.push({ text: newText, counter: null });
+                updateLocalStorage();
+                updateVisualization();
+              }
+            });
+          // "Add Warrant" button.
+          group.append("circle")
+            .attr("class", "button-circle")
+            .attr("cx", d.nodeWidth + 30)
+            .attr("cy", d.nodeHeight / 2 - 10)
+            .attr("r", 8)
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              const newText = prompt("New Warrant text:");
+              if (newText) {
+                d.data.raw.warrants.push({ text: newText, counter: null });
+                updateLocalStorage();
+                updateVisualization();
+              }
+            });
+          group.append("text")
+            .attr("x", d.nodeWidth + 30)
+            .attr("y", d.nodeHeight / 2 - 6)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .text("W")
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              const newText = prompt("New Warrant text:");
+              if (newText) {
+                d.data.raw.warrants.push({ text: newText, counter: null });
+                updateLocalStorage();
+                updateVisualization();
+              }
+            });
+        });
 
-      // For claim nodes that have children (i.e. potential to collapse/expand), add a toggle button.
-      node.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
-          .append("circle")
-          .attr("class", "collapse-circle")
-          .attr("cx", -10)
-          .attr("cy", 10)
-          .attr("r", 8)
-          .on("click", (event, d) => {
-            event.stopPropagation();
-            // Toggle collapsed state.
-            d.data.raw.collapsed = !d.data.raw.collapsed;
+      // For claim nodes with children, add a collapse/expand toggle.
+      nodeGroups.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
+        .append("circle")
+        .attr("class", "collapse-circle")
+        .attr("cx", -10)
+        .attr("cy", 10)
+        .attr("r", 8)
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          d.data.raw.collapsed = !d.data.raw.collapsed;
+          updateVisualization();
+        });
+      nodeGroups.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
+        .append("text")
+        .attr("x", -10)
+        .attr("y", 14)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "10px")
+        .text(d => d.data.raw.collapsed ? "+" : "-")
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          d.data.raw.collapsed = !d.data.raw.collapsed;
+          updateVisualization();
+        });
+
+      // Add a delete button for non-root nodes.
+      nodeGroups.filter(d => d.depth > 0)
+        .append("circle")
+        .attr("class", "delete-circle")
+        .attr("cx", 10)
+        .attr("cy", 10)
+        .attr("r", 8)
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          if (confirm("Delete this node?")) {
+            deleteArgumentNode(d.data.originalPath);
             updateVisualization();
-          });
-      node.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
-          .append("text")
-          .attr("x", -10)
-          .attr("y", 14)
-          .attr("text-anchor", "middle")
-          .attr("font-size", "10px")
-          .attr("pointer-events", "none")
-          .text(d => d.data.raw.collapsed ? "+" : "-");
+          }
+        });
+      nodeGroups.filter(d => d.depth > 0)
+        .append("text")
+        .attr("x", 10)
+        .attr("y", 14)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "10px")
+        .text("×")
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          if (confirm("Delete this node?")) {
+            deleteArgumentNode(d.data.originalPath);
+            updateVisualization();
+          }
+        });
 
-      // Add delete button for non-root nodes.
-      node.filter(d => d.depth > 0)
-          .append("circle")
-          .attr("class", "delete-circle")
-          .attr("cx", 10)
-          .attr("cy", 10)
-          .attr("r", 8)
-          .on("click", (event, d) => {
-            event.stopPropagation();
-            if (confirm("Delete this node?")) {
-              deleteArgumentNode(d.data.originalPath);
-              updateVisualization();
-            }
-          });
-      node.filter(d => d.depth > 0)
-          .append("text")
-          .attr("x", 10)
-          .attr("y", 14)
-          .attr("text-anchor", "middle")
-          .attr("font-size", "10px")
-          .attr("pointer-events", "none")
-          .text("×");
+      // Update positions on each tick.
+      function ticked() {
+        linkElements
+          .attr("x1", d => d.source.x + d.source.nodeWidth / 2)
+          .attr("y1", d => d.source.y + d.source.nodeHeight / 2)
+          .attr("x2", d => d.target.x + d.target.nodeWidth / 2)
+          .attr("y2", d => d.target.y + d.target.nodeHeight / 2);
+        nodeGroups.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+      }
+
+      function dragStarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+      function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
+      function dragEnded(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
     }
 
-    /***********************
-     * Initialize Application
-     ***********************/
-    document.addEventListener('DOMContentLoaded', function() {
+    // Update visualization on window resize.
+    window.addEventListener("resize", function() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      svg.attr("width", width).attr("height", height);
+      updateVisualization();
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
       loadTrees();
       populateDropdown();
       updateVisualization();
