@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Enhanced Argument Tree Visualizer – Full Defaults</title>
+  <title>Enhanced Argument Tree Visualizer – External Files</title>
   <style>
     body {
       margin: 0;
@@ -54,6 +54,7 @@
     <button id="newArgument">New Argument Tree</button>
     <button id="clearAll">Clear All</button>
     <button id="resetDefaults">Defaults</button>
+    <button id="loadExternal">Load External Argument</button>
   </div>
   <svg id="canvas" width="100%" height="100%"></svg>
 
@@ -67,7 +68,7 @@
     let currentTreeName = "";
     let currentTree = {};
 
-    // Expanded default Gun Control Debate tree with multiple nested counter-arguments.
+    // Expanded default Gun Control Debate tree
     const defaultGunControlTree = {
       claim: "Gun control is essential for reducing violent crime.",
       data: [
@@ -252,7 +253,6 @@
     /***********************
      * Color Palette & Persistent Color Assignment
      ***********************/
-    // A preset palette of pastel colors chosen for contrast.
     const palette = [
       "hsl(0, 70%, 85%)",
       "hsl(180, 70%, 85%)",
@@ -314,7 +314,6 @@
         updateLocalStorage();
       }
     };
-    // New: Clear All button – removes all stored arguments.
     document.getElementById('clearAll').onclick = function() {
       if (confirm("Are you sure you want to clear all arguments?")) {
         argumentTrees = {};
@@ -325,17 +324,50 @@
         updateVisualization();
       }
     };
-    // New: Defaults button – resets to the full default Gun Control Debate.
     document.getElementById('resetDefaults').onclick = function() {
       if (confirm("Reset to the default Gun Control Debate?")) {
         argumentTrees = { "Gun Control Debate": defaultGunControlTree };
         currentTreeName = "Gun Control Debate";
         currentTree = argumentTrees[currentTreeName];
-        nextColorIndex = 0; // Reset color assignment.
+        nextColorIndex = 0;
         updateLocalStorage();
         populateDropdown();
         updateVisualization();
       }
+    };
+
+    // New: Load External Argument button – scan a folder for available JSON argument files.
+    document.getElementById('loadExternal').onclick = function() {
+      d3.json('arguments/index.json')
+        .then(function(indexData) {
+          if (indexData && indexData.arguments && indexData.arguments.length > 0) {
+            let options = indexData.arguments.map((f, i) => i + ": " + f).join("\n");
+            let choice = prompt("Available argument files:\n" + options + "\nEnter the index number of the argument file to load:");
+            let idx = parseInt(choice);
+            if (!isNaN(idx) && idx >= 0 && idx < indexData.arguments.length) {
+              let fileName = indexData.arguments[idx];
+              d3.json('arguments/' + fileName)
+                .then(function(data) {
+                  argumentTrees[fileName] = data;
+                  currentTreeName = fileName;
+                  currentTree = data;
+                  updateLocalStorage();
+                  populateDropdown();
+                  updateVisualization();
+                })
+                .catch(function(err) {
+                  alert("Error loading file: " + fileName);
+                });
+            } else {
+              alert("Invalid choice.");
+            }
+          } else {
+            alert("No external argument files found.");
+          }
+        })
+        .catch(function(err) {
+          alert("Error scanning folder: " + err);
+        });
     };
 
     /***********************
@@ -435,7 +467,7 @@
     }));
     const gContainer = svg.append("g");
 
-    // Helper: Wrap text inside a given width.
+    // Helper: Wrap text within a given width.
     function wrap(text, width) {
       text.each(function() {
         var textEl = d3.select(this),
@@ -443,7 +475,7 @@
             word,
             line = [],
             lineNumber = 0,
-            lineHeight = 1.1, // ems
+            lineHeight = 1.1,
             x = textEl.attr("x"),
             y = textEl.attr("y"),
             dy = 0,
@@ -461,7 +493,6 @@
       });
     }
 
-    // Main update function using a force simulation.
     function updateVisualization() {
       gContainer.selectAll("*").remove();
       if (!currentTree) return;
@@ -471,15 +502,10 @@
       const nodes = root.descendants();
       const links = root.links();
 
-      // Compute dimensions for each node (with text wrapping).
       nodes.forEach(d => {
         let label = d.data.name.split(": ")[1];
-        const fontSize = 12;
-        const maxWidth = 200; // Maximum width before wrapping.
-        let tempText = svg.append("text")
-                          .attr("font-size", fontSize)
-                          .attr("font-family", "sans-serif")
-                          .text(label);
+        const fontSize = 12, maxWidth = 200;
+        let tempText = svg.append("text").attr("font-size", fontSize).attr("font-family", "sans-serif").text(label);
         let bbox = tempText.node().getBBox();
         tempText.remove();
         let lines = Math.ceil(bbox.width / maxWidth);
@@ -487,26 +513,23 @@
         let nodeHeight = (lines * 16) + 20;
         d.nodeWidth = nodeWidth;
         d.nodeHeight = nodeHeight;
-        d.radius = Math.sqrt((nodeWidth/2) ** 2 + (nodeHeight/2) ** 2);
+        d.radius = Math.sqrt((nodeWidth/2)**2 + (nodeHeight/2)**2);
       });
 
-      // Set up force simulation with a vertical force to simulate gravity.
       const simulation = d3.forceSimulation(nodes)
         .force("link", d3.forceLink(links).distance(150).strength(1))
         .force("collide", d3.forceCollide().radius(d => d.radius + 10).iterations(2))
         .force("charge", d3.forceManyBody().strength(-200))
-        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("center", d3.forceCenter(width/2, height/2))
         .force("y", d3.forceY(d => d.depth * 150).strength(0.8))
         .on("tick", ticked);
 
-      // Draw links.
       const linkElements = gContainer.selectAll("line.link")
         .data(links)
         .enter()
         .append("line")
         .attr("class", "link");
 
-      // Draw nodes.
       const nodeGroups = gContainer.selectAll("g.node")
         .data(nodes)
         .enter()
@@ -518,8 +541,7 @@
           .on("end", dragEnded)
         );
 
-      // Append shapes based on node type.
-      // Claim nodes: ellipse.
+      // Claim nodes as ellipses.
       nodeGroups.filter(d => d.data.type === "claim")
         .append("ellipse")
         .attr("cx", d => d.nodeWidth/2)
@@ -530,12 +552,12 @@
         .on("dblclick", (event, d) => {
           let currentText = d.data.name.split(": ")[1];
           let newText = prompt("Edit text:", currentText);
-          if (newText !== null) {
+          if(newText !== null) {
             updateArgumentText(d.data.originalPath, newText);
             updateVisualization();
           }
         });
-      // Data nodes: rectangle.
+      // Data nodes as rectangles.
       nodeGroups.filter(d => d.data.type === "data")
         .append("rect")
         .attr("width", d => d.nodeWidth)
@@ -544,28 +566,25 @@
         .on("dblclick", (event, d) => {
           let currentText = d.data.name.split(": ")[1];
           let newText = prompt("Edit text:", currentText);
-          if (newText !== null) {
+          if(newText !== null) {
             updateArgumentText(d.data.originalPath, newText);
             updateVisualization();
           }
         });
-      // Warrant nodes: triangle (polygon).
+      // Warrant nodes as triangles.
       nodeGroups.filter(d => d.data.type === "warrant")
         .append("polygon")
-        .attr("points", d => {
-          return `0,${d.nodeHeight} ${d.nodeWidth/2},0 ${d.nodeWidth},${d.nodeHeight}`;
-        })
+        .attr("points", d => `0,${d.nodeHeight} ${d.nodeWidth/2},0 ${d.nodeWidth},${d.nodeHeight}`)
         .attr("fill", d => d.data.bgColor)
         .on("dblclick", (event, d) => {
           let currentText = d.data.name.split(": ")[1];
           let newText = prompt("Edit text:", currentText);
-          if (newText !== null) {
+          if(newText !== null) {
             updateArgumentText(d.data.originalPath, newText);
             updateVisualization();
           }
         });
 
-      // Append centered text for all nodes.
       nodeGroups.append("text")
         .attr("x", d => d.nodeWidth/2)
         .attr("y", d => d.nodeHeight/2)
@@ -578,11 +597,8 @@
           wrap(d3.select(this), d.nodeWidth - 20);
         });
 
-      /***********************
-       * Interactive Buttons
-       ***********************/
-      // For data/warrant nodes without a counter, add an "Add Counter" button.
-      nodeGroups.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
+      /*********************** Interactive Buttons ***********************/
+      nodeGroups.filter(d => (d.data.type==="data" || d.data.type==="warrant") && !d.data.raw.counter)
         .append("circle")
         .attr("class", "button-circle")
         .attr("cx", d => d.nodeWidth - 10)
@@ -593,7 +609,7 @@
           addCounterToNode(d.data.originalPath);
           updateVisualization();
         });
-      nodeGroups.filter(d => (d.data.type === "data" || d.data.type === "warrant") && !d.data.raw.counter)
+      nodeGroups.filter(d => (d.data.type==="data" || d.data.type==="warrant") && !d.data.raw.counter)
         .append("text")
         .attr("x", d => d.nodeWidth - 10)
         .attr("y", d => d.nodeHeight - 6)
@@ -606,11 +622,9 @@
           updateVisualization();
         });
 
-      // For claim nodes, add "Add Data" and "Add Warrant" buttons.
-      nodeGroups.filter(d => d.data.type === "claim")
+      nodeGroups.filter(d => d.data.type==="claim")
         .each(function(d) {
           const group = d3.select(this);
-          // "Add Data" button.
           group.append("circle")
             .attr("class", "button-circle")
             .attr("cx", d.nodeWidth + 10)
@@ -619,7 +633,7 @@
             .on("click", (event, d) => {
               event.stopPropagation();
               const newText = prompt("New Data text:");
-              if (newText) {
+              if(newText) {
                 d.data.raw.data.push({ text: newText, counter: null });
                 updateLocalStorage();
                 updateVisualization();
@@ -634,13 +648,12 @@
             .on("click", (event, d) => {
               event.stopPropagation();
               const newText = prompt("New Data text:");
-              if (newText) {
+              if(newText) {
                 d.data.raw.data.push({ text: newText, counter: null });
                 updateLocalStorage();
                 updateVisualization();
               }
             });
-          // "Add Warrant" button.
           group.append("circle")
             .attr("class", "button-circle")
             .attr("cx", d.nodeWidth + 30)
@@ -649,7 +662,7 @@
             .on("click", (event, d) => {
               event.stopPropagation();
               const newText = prompt("New Warrant text:");
-              if (newText) {
+              if(newText) {
                 d.data.raw.warrants.push({ text: newText, counter: null });
                 updateLocalStorage();
                 updateVisualization();
@@ -664,7 +677,7 @@
             .on("click", (event, d) => {
               event.stopPropagation();
               const newText = prompt("New Warrant text:");
-              if (newText) {
+              if(newText) {
                 d.data.raw.warrants.push({ text: newText, counter: null });
                 updateLocalStorage();
                 updateVisualization();
@@ -672,8 +685,7 @@
             });
         });
 
-      // For claim nodes with children, add a collapse/expand toggle.
-      nodeGroups.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
+      nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length>0 || d.data.raw.warrants.length>0))
         .append("circle")
         .attr("class", "collapse-circle")
         .attr("cx", -10)
@@ -684,7 +696,7 @@
           d.data.raw.collapsed = !d.data.raw.collapsed;
           updateVisualization();
         });
-      nodeGroups.filter(d => d.data.type === "claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
+      nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length>0 || d.data.raw.warrants.length>0))
         .append("text")
         .attr("x", -10)
         .attr("y", 14)
@@ -696,9 +708,7 @@
           d.data.raw.collapsed = !d.data.raw.collapsed;
           updateVisualization();
         });
-
-      // Add a delete button for non-root nodes.
-      nodeGroups.filter(d => d.depth > 0)
+      nodeGroups.filter(d => d.depth>0)
         .append("circle")
         .attr("class", "delete-circle")
         .attr("cx", 10)
@@ -706,12 +716,12 @@
         .attr("r", 8)
         .on("click", (event, d) => {
           event.stopPropagation();
-          if (confirm("Delete this node?")) {
+          if(confirm("Delete this node?")){
             deleteArgumentNode(d.data.originalPath);
             updateVisualization();
           }
         });
-      nodeGroups.filter(d => d.depth > 0)
+      nodeGroups.filter(d => d.depth>0)
         .append("text")
         .attr("x", 10)
         .attr("y", 14)
@@ -720,7 +730,7 @@
         .text("×")
         .on("click", (event, d) => {
           event.stopPropagation();
-          if (confirm("Delete this node?")) {
+          if(confirm("Delete this node?")){
             deleteArgumentNode(d.data.originalPath);
             updateVisualization();
           }
@@ -735,7 +745,7 @@
         nodeGroups.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
       }
       function dragStarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
+        if(!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
       }
@@ -744,20 +754,20 @@
         d.fy = event.y;
       }
       function dragEnded(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
+        if(!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
       }
     }
 
-    window.addEventListener("resize", function() {
+    window.addEventListener("resize", function(){
       width = window.innerWidth;
       height = window.innerHeight;
       svg.attr("width", width).attr("height", height);
       updateVisualization();
     });
 
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function(){
       loadTrees();
       populateDropdown();
       updateVisualization();
