@@ -279,7 +279,6 @@
       return newNode;
     }
 
-
     /***********************
      * Data Update Functions
      ***********************/
@@ -395,13 +394,14 @@
       const rootData = convertArgumentNode(currentTree, []);
       const root = d3.hierarchy(rootData);
       
-      // Use d3.tree layout for clear hierarchical arrangement.
+      // Use d3.tree layout with fixed node size for better spacing.
+      // Here, nodeSize([250, 150]) means nodes will be spaced 250px apart horizontally and 150px vertically.
       const treeLayout = d3.tree()
-        .size([width - 160, height - 100])
-        .separation((a, b) => a.parent === b.parent ? 1 : 2);
+        .nodeSize([250, 150])
+        .separation((a, b) => a.parent === b.parent ? 1 : 1.5);
       treeLayout(root);
       
-      // For each node, measure label to compute shape dimensions.
+      // For each node, measure the label to compute shape dimensions.
       root.descendants().forEach(d => {
         let label = d.data.name.split(": ")[1];
         const fontSize = 12, maxWidth = 200;
@@ -612,7 +612,7 @@
         });
       
       // For claim nodes with children, add a collapse/expand toggle (shifted further left).
-      nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length>0 || d.data.raw.warrants.length>0))
+      nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
         .append("circle")
         .attr("class", "collapse-circle")
         .attr("cx", -20)
@@ -623,7 +623,7 @@
           d.data.raw.collapsed = !d.data.raw.collapsed;
           updateVisualization();
         });
-      nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length>0 || d.data.raw.warrants.length>0))
+      nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
         .append("text")
         .attr("x", -20)
         .attr("y", 14)
