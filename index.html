@@ -513,7 +513,7 @@
             updateVisualization();
           }
         });
-      // Warrant nodes as triangles – increased in size.
+      // Warrant nodes as triangles.
       nodeGroups.filter(d => d.data.type === "warrant")
         .append("polygon")
         .attr("points", d => `0,${d.nodeHeight+10} ${d.nodeWidth/2},-10 ${d.nodeWidth},${d.nodeHeight+10}`)
@@ -630,31 +630,35 @@
                 updateVisualization();
               }
             });
-          // If sources exist, add a "S" button.
-          if(d.data.raw.sources && d.data.raw.sources.length > 0) {
-            group.append("circle")
-              .attr("class", "source-circle")
-              .attr("cx", d.nodeWidth + 50)
-              .attr("cy", d.nodeHeight/2 - 10)
-              .attr("r", 8)
-              .on("click", (event, d) => {
-                event.stopPropagation();
-                showSources(d.data.raw.sources);
-              });
-            group.append("text")
-              .attr("x", d.nodeWidth + 50)
-              .attr("y", d.nodeHeight/2 - 6)
-              .attr("text-anchor", "middle")
-              .attr("font-size", "10px")
-              .text("S")
-              .on("click", (event, d) => {
-                event.stopPropagation();
-                showSources(d.data.raw.sources);
-              });
-          }
+          // Note: Sources button is no longer added for claim nodes.
         });
       
-      // For claim nodes with children, add a collapse/expand toggle (shifted further left).
+      // Add sources button for data and warrant nodes if sources exist.
+      nodeGroups.filter(d => (d.data.type==="data" || d.data.type==="warrant") && d.data.raw.sources && d.data.raw.sources.length > 0)
+        .each(function(d) {
+          const group = d3.select(this);
+          group.append("circle")
+            .attr("class", "source-circle")
+            .attr("cx", d.nodeWidth + 10)
+            .attr("cy", d.nodeHeight/2 - 10)
+            .attr("r", 8)
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              showSources(d.data.raw.sources);
+            });
+          group.append("text")
+            .attr("x", d.nodeWidth + 10)
+            .attr("y", d.nodeHeight/2 - 6)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .text("S")
+            .on("click", (event, d) => {
+              event.stopPropagation();
+              showSources(d.data.raw.sources);
+            });
+        });
+      
+      // For claim nodes with children, add a collapse/expand toggle.
       nodeGroups.filter(d => d.data.type==="claim" && (d.data.raw.data.length > 0 || d.data.raw.warrants.length > 0))
         .append("circle")
         .attr("class", "collapse-circle")
@@ -679,7 +683,7 @@
           updateVisualization();
         });
       
-      // Add a delete button for non-root nodes (shifted further right).
+      // Add a delete button for non-root nodes.
       nodeGroups.filter(d => d.depth > 0)
         .append("circle")
         .attr("class", "delete-circle")
