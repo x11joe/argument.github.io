@@ -245,35 +245,40 @@
       };
       newNode.children = [];
       if (!argNode.collapsed) {
-        argNode.data.forEach((d, i) => {
-          let child = {
-            name: "Data: " + d.text,
-            type: "data",
-            originalPath: path.concat(["data", i]),
-            raw: d,
-            bgColor: argNode.color
-          };
-          if (d.counter) {
-            child.children = [convertArgumentNode(d.counter, path.concat(["data", i, "counter"]))];
-          }
-          newNode.children.push(child);
-        });
-        argNode.warrants.forEach((w, i) => {
-          let child = {
-            name: "Warrant: " + w.text,
-            type: "warrant",
-            originalPath: path.concat(["warrants", i]),
-            raw: w,
-            bgColor: argNode.color
-          };
-          if (w.counter) {
-            child.children = [convertArgumentNode(w.counter, path.concat(["warrants", i, "counter"]))];
-          }
-          newNode.children.push(child);
-        });
+        if (argNode.data && Array.isArray(argNode.data)) {
+          argNode.data.forEach((d, i) => {
+            let child = {
+              name: "Data: " + d.text,
+              type: "data",
+              originalPath: path.concat(["data", i]),
+              raw: d,
+              bgColor: argNode.color
+            };
+            if (d.counter) {
+              child.children = [convertArgumentNode(d.counter, path.concat(["data", i, "counter"]))];
+            }
+            newNode.children.push(child);
+          });
+        }
+        if (argNode.warrants && Array.isArray(argNode.warrants)) {
+          argNode.warrants.forEach((w, i) => {
+            let child = {
+              name: "Warrant: " + w.text,
+              type: "warrant",
+              originalPath: path.concat(["warrants", i]),
+              raw: w,
+              bgColor: argNode.color
+            };
+            if (w.counter) {
+              child.children = [convertArgumentNode(w.counter, path.concat(["warrants", i, "counter"]))];
+            }
+            newNode.children.push(child);
+          });
+        }
       }
       return newNode;
     }
+
 
     /***********************
      * Data Update Functions
